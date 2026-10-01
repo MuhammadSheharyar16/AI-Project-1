@@ -1,0 +1,13 @@
+# Direct dependencies, pinned to the versions this POC was tested with (Python 3.11+).
+# Full, reproducible set including transitive packages: requirements.lock
+#   pip install -r requirements.lock
+fastapi==0.142.2
+uvicorn[standard]==0.54.0
+pydantic==2.13.5
+pydantic-settings==2.15.0
+sqlmodel==0.0.47
+SQLAlchemy==2.0.54
+httpx==0.28.1
+pytest==9.1.1
+# Optional, only when DATABASE_URL points at Postgres (Neon / Supabase):
+# psycopg[binary]==3.2.*
