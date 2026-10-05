@@ -1,11 +1,13 @@
 import asyncio
 import json
+from time import perf_counter
 from typing import Any
 
 import httpx
 import pytest
 from pydantic import ValidationError
 
+from app.ai.governance import with_timeout
 from app.ai.llm import GroqClient, LLMError, LLMRateLimited, LLMTimeout
 from app.pipeline.checks import (
     banned, dates, links, percents, periods, policy_ai, prices, unlimited,
@@ -218,6 +220,22 @@ def test_ai_malformed_verdict_raises(rules: Rules) -> None:
 def test_ai_timeout_raises(rules: Rules) -> None:
     with pytest.raises(LLMTimeout):
         ai_check("Refunds are available within 14 days.", rules, SlowLLM(), timeout=0.05)
+
+
+def test_timeout_does_not_wait_for_a_call_that_is_slow_to_stop() -> None:
+    async def stuck_closing() -> None:
+        try:
+            await asyncio.sleep(5)
+        finally:
+            await asyncio.shield(asyncio.sleep(1))  # e.g. a connection that stalls while closing
+
+    async def run() -> float:
+        started = perf_counter()
+        with pytest.raises(LLMTimeout):
+            await with_timeout(stuck_closing(), 0.05)
+        return perf_counter() - started
+
+    assert asyncio.run(run()) < 0.5
 
 
 # --- GroqClient (offline, via httpx.MockTransport) ---------------------------

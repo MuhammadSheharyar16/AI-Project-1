@@ -29,10 +29,19 @@ class AIBudgetExceeded(LLMError):
 
 
 async def with_timeout(call: Awaitable[T], timeout_s: float) -> T:
+    """Hard deadline. `asyncio.wait_for` would also wait for the cancelled call to finish cleaning
+    up (e.g. closing a stalled connection), which can take far longer than the timeout."""
+    task = asyncio.ensure_future(call)
     try:
-        return await asyncio.wait_for(call, timeout=timeout_s)
-    except TimeoutError as exc:
-        raise LLMTimeout(f"AI call timed out after {timeout_s:g}s") from exc
+        done, _ = await asyncio.wait({task}, timeout=timeout_s)
+    except asyncio.CancelledError:
+        task.cancel()
+        raise
+    if not done:
+        task.cancel()
+        task.add_done_callback(lambda t: t.cancelled() or t.exception())  # nothing left unretrieved
+        raise LLMTimeout(f"AI call timed out after {timeout_s:g}s")
+    return task.result()
 
 
 class AIBudget:
