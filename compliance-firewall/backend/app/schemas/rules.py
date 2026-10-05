@@ -17,9 +17,16 @@ class _Strict(BaseModel):
 class PriceRule(_Strict):
     product: str = Field(min_length=1, max_length=80)
     aliases: list[str] = Field(default_factory=list)
+    # One official price, in one currency. Never converted.
     price: str = Field(min_length=1, description='e.g. "USD 49", "$49" or "Rs 4,999"')
-    # The same plan's official price in other currencies (one per currency). Never converted.
-    other_prices: list[str] = Field(default_factory=list, description='e.g. ["Rs 13,999"]')
+
+    @model_validator(mode="before")
+    @classmethod
+    def _drop_legacy_other_prices(cls, data: object) -> object:
+        # Versions saved when a plan could list a price per currency still carry `other_prices`.
+        if isinstance(data, dict) and "other_prices" in data:
+            return {k: v for k, v in data.items() if k != "other_prices"}
+        return data
 
     @field_validator("price")
     @classmethod
@@ -27,21 +34,6 @@ class PriceRule(_Strict):
         if money(value) is None:
             raise ValueError(f"unrecognised price format: {value!r}")
         return value
-
-    @field_validator("other_prices")
-    @classmethod
-    def _other_prices_parse(cls, value: list[str]) -> list[str]:
-        for price in value:
-            if money(price) is None:
-                raise ValueError(f"unrecognised price format: {price!r}")
-        return value
-
-    @model_validator(mode="after")
-    def _one_price_per_currency(self) -> "PriceRule":
-        currencies = [m.currency for m in self.all_money()]
-        if len(currencies) != len(set(currencies)):
-            raise ValueError(f"{self.product}: only one official price per currency")
-        return self
 
     @field_validator("aliases")
     @classmethod
@@ -51,14 +43,10 @@ class PriceRule(_Strict):
             raise ValueError("aliases must not be blank")
         return cleaned
 
-    def all_money(self) -> list[Money]:
-        """Every official price of this plan, `price` first."""
-        parsed = [money(p) for p in (self.price, *self.other_prices)]
-        assert all(parsed)  # guaranteed by the validators
-        return parsed  # type: ignore[return-value]
-
-    def money_in(self, currency: str) -> Money | None:
-        return next((m for m in self.all_money() if m.currency == currency), None)
+    def official(self) -> Money:
+        parsed = money(self.price)
+        assert parsed  # guaranteed by the validator
+        return parsed
 
     def names(self) -> list[str]:
         return [self.product, *self.aliases]

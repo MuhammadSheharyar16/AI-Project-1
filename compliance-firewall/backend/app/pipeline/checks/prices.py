@@ -1,6 +1,6 @@
-"""Price check: amount within 0.01 of the linked product's official price in the same currency.
+"""Price check: amount within 0.01 of the linked product's official price, in the same currency.
 
-A plan can have one official price per currency. Prices are never converted between currencies.
+A plan has one official price. Prices are never converted between currencies.
 """
 
 from decimal import Decimal
@@ -20,16 +20,9 @@ def check(fact: Fact, rules: Rules) -> FactResult:
     if rule is None:
         return FactResult(fact=fact, ok=False,
                           reason=f"price for unknown product: answer says {fact.value or fact.raw}")
-    official = rule.money_in(said.currency)
-    if official is None:
-        listed = " / ".join(m.label() for m in rule.all_money())
-        return FactResult(
-            fact=fact, ok=False, rule=f"{rule.product} = {listed}",
-            reason=f"price mismatch: answer says {said.label()}, "
-                   f"there is no official {said.currency} price (official: {listed})",
-        )
+    official = rule.official()
     label = f"{rule.product} = {official.label()}"
-    if abs(said.amount - official.amount) <= TOLERANCE:
+    if said.currency == official.currency and abs(said.amount - official.amount) <= TOLERANCE:
         return FactResult(fact=fact, ok=True, rule=label, reason="matches the official price")
     return FactResult(
         fact=fact, ok=False, rule=label,

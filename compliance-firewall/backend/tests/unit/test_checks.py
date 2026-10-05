@@ -25,7 +25,6 @@ def first(answer: str, rules: Rules, kind: str) -> Fact:
 
 @pytest.mark.parametrize("answer", [
     "Pro is $49.", "Pro is 49.00 USD.", "Pro is US$49.004.", "Basic is 4999 PKR.",
-    "Pro is Rs 13,999.", "Basic is $18.", "Business is 27999 PKR.",  # each plan's other official price
 ])
 def test_price_ok(rules: Rules, answer: str) -> None:
     assert prices.check(first(answer, rules, "price"), rules).ok
@@ -41,17 +40,15 @@ def test_price_mismatch_reason_and_rule(rules: Rules) -> None:
 def test_price_other_currency_is_mismatch_not_converted(rules: Rules) -> None:
     result = prices.check(first("Pro is Rs 49.", rules, "price"), rules)
     assert not result.ok
-    assert result.rule == "Pro plan = PKR 13,999"
-    assert result.reason == "price mismatch: answer says PKR 49, official price is PKR 13,999"
+    assert result.rule == "Pro plan = USD 49"
+    assert result.reason == "price mismatch: answer says PKR 49, official price is USD 49"
 
 
-def test_price_in_currency_without_official_price(rules: Rules) -> None:
-    pro = next(r for r in rules.prices if r.product == "Pro plan")
-    pro.other_prices = []  # Pro now only has a USD price
-    result = prices.check(first("Pro is Rs 13,999.", rules, "price"), rules)
-    assert not result.ok
-    assert result.reason == ("price mismatch: answer says PKR 13,999, "
-                             "there is no official PKR price (official: USD 49)")
+def test_legacy_other_prices_are_ignored(rules: Rules) -> None:
+    data = rules.model_dump(mode="json")
+    data["prices"][1]["other_prices"] = ["Rs 13,999"]  # as saved by older versions
+    old = Rules.model_validate(data)
+    assert not prices.check(first("Pro is Rs 13,999.", old, "price"), old).ok
 
 
 def test_price_unknown_product(rules: Rules) -> None:

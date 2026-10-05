@@ -13,7 +13,7 @@ flowchart TD
     S --> BP["Banned phrases (code)"]
     BP --> N{"Any facts, flags<br/>or cues left?"}
     N -- no --> OK["Approved instantly<br/>(no AI)"]
-    N -- yes --> C["Code checks per fact<br/>prices (per currency, no conversion) · % · periods · dates · links · unlimited"]
+    N -- yes --> C["Code checks per fact<br/>prices (same currency, no conversion) · % · periods · dates · links · unlimited"]
     C --> F1{"Any failed?"}
     F1 -- yes --> REJ["Rejected<br/>(AI skipped: saves time and cost)"]
     F1 -- no --> AX{"Cues the pattern<br/>rules missed?"}

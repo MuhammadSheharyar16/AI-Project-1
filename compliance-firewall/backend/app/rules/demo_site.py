@@ -25,7 +25,7 @@ from app.core.config import get_settings
 from app.core.db import make_engine
 from app.pipeline.normalize import Money
 from app.rules import repository
-from app.schemas.rules import PriceRule, Rules
+from app.schemas.rules import Rules
 
 DEMO_SITE = Path(__file__).resolve().parents[3] / "demo-site"
 PRICING_PAGE = Path("pricing/index.html")
@@ -36,13 +36,6 @@ def _display(price: Money) -> str:
     """Site style: "Rs 4,999" and "$49"."""
     number = price.label().split(" ", 1)[1]
     return f"${number}" if price.currency == "USD" else f"Rs {number}" if price.currency == "PKR" else price.label()
-
-
-def _site_prices(rule: PriceRule) -> tuple[str, str]:
-    """(headline, "or ..." line). The site leads with the rupee price when there is one."""
-    prices = sorted(rule.all_money(), key=lambda m: m.currency != "PKR")
-    others = " / ".join(_display(m) for m in prices[1:])
-    return _display(prices[0]), f"or {others}" if others else ""
 
 
 def _replace(page: str, pattern: str, parts: tuple[str, ...], missing: str, warnings: list[str]) -> str:
@@ -62,8 +55,8 @@ def render_pricing(page: str, rules: Rules, warnings: list[str]) -> str:
         name = re.escape(html.escape(rule.product, quote=False))
         page = _replace(
             page,
-            rf'(<h2>{name}</h2>\s*<p class="price">)[^<]*(</p>\s*<p class="alt-price">)[^<]*(</p>)',
-            _site_prices(rule), f"pricing page has no card for plan {rule.product!r}", warnings,
+            rf'(<h2>{name}</h2>\s*<p class="price">)[^<]*(</p>)',
+            (_display(rule.official()),), f"pricing page has no card for plan {rule.product!r}", warnings,
         )
     for discount in rules.discounts:
         name = re.escape(html.escape(discount.name, quote=False))

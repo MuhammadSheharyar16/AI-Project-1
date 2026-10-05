@@ -7,9 +7,9 @@ from app.schemas.rules import Rules
 
 SEED_RULES: dict = {
     "prices": [
-        {"product": "Basic plan", "aliases": ["basic"], "price": "Rs 4,999", "other_prices": ["USD 18"]},
-        {"product": "Pro plan", "aliases": ["pro"], "price": "USD 49", "other_prices": ["Rs 13,999"]},
-        {"product": "Business plan", "aliases": ["business"], "price": "USD 99", "other_prices": ["Rs 27,999"]},
+        {"product": "Basic plan", "aliases": ["basic"], "price": "Rs 4,999"},
+        {"product": "Pro plan", "aliases": ["pro"], "price": "USD 49"},
+        {"product": "Business plan", "aliases": ["business"], "price": "USD 99"},
     ],
     "discounts": [{"name": "Annual billing", "percent": 20}],
     "policies": [

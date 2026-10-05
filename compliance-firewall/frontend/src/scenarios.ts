@@ -58,7 +58,7 @@ export const SCENARIOS: Scenario[] = [
     title: 'Link: trailing slash + caps',
     expected: 'Treated as allowed.',
     question: 'Where is help?',
-    answer: 'Visit HTTPS://MuhammadSheharyar16.GitHub.io/HisaabPro/Help/ for more help.',
+    answer: 'Visit https://muhammadsheharyar16.gitHub.io/hisaabpro/help/ for more help.',
   },
   {
     id: 'pro-59',

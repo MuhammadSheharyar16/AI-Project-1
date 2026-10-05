@@ -81,12 +81,7 @@ def _bad_rules() -> list[dict[str, Any]]:
     banned_in_message["safe_messages"]["policy"] = "Guaranteed refund for everyone."
     missing = seed()
     del missing["safe_messages"]
-    two_usd_prices = seed()
-    two_usd_prices["prices"][1]["other_prices"] = ["$59"]
-    bad_other_price = seed()
-    bad_other_price["prices"][1]["other_prices"] = ["thirteen thousand"]
-    return [bad_price, unknown_field, dup_policy, bad_link, unsafe_message, banned_in_message, missing,
-            two_usd_prices, bad_other_price]
+    return [bad_price, unknown_field, dup_policy, bad_link, unsafe_message, banned_in_message, missing]
 
 
 @pytest.mark.parametrize("rules", _bad_rules())

@@ -37,8 +37,7 @@ def test_edited_rules_are_written_to_the_pages(tmp_path: Path) -> None:
 
     assert changed == [demo_site.PRICING_PAGE, demo_site.POLICIES_PAGE] and warnings == []
     pricing = (site / demo_site.PRICING_PAGE).read_text(encoding="utf-8")
-    assert '<p class="price">Rs 499</p>' in pricing and '<p class="alt-price">or $18</p>' in pricing
-    assert '<p class="price">Rs 13,999</p>' in pricing and '<p class="alt-price">or $59</p>' in pricing
+    assert '<p class="price">Rs 499</p>' in pricing and '<p class="price">$59</p>' in pricing
     assert "save 25% when you pay" in pricing
     policies = (site / demo_site.POLICIES_PAGE).read_text(encoding="utf-8")
     assert "<p>Refunds are available within 30 days of purchase.</p>" in policies
@@ -47,7 +46,7 @@ def test_edited_rules_are_written_to_the_pages(tmp_path: Path) -> None:
 
 def test_rules_without_a_matching_block_are_reported(tmp_path: Path) -> None:
     edited = copy.deepcopy(SEED_RULES)
-    edited["prices"].append({"product": "Enterprise plan", "aliases": [], "price": "USD 499", "other_prices": []})
+    edited["prices"].append({"product": "Enterprise plan", "aliases": [], "price": "USD 499"})
     changed, warnings = demo_site.sync(site_copy(tmp_path), Rules.model_validate(edited))
     assert changed == [] and warnings == ["pricing page has no card for plan 'Enterprise plan'"]
 

@@ -160,8 +160,8 @@ The rules are the single source of truth. Compliance staff edit them on the **Tr
 Every save creates a new version (v1, v2, …); old versions are never changed, and restoring one creates
 a new copy. Version 1 contains:
 
-- **Prices** per plan and currency: Basic `Rs 4,999` / `USD 18`, Pro `USD 49` / `Rs 13,999`,
-  Business `USD 99` / `Rs 27,999`. There is no currency conversion.
+- **Prices**, one per plan: Basic `Rs 4,999`, Pro `USD 49`, Business `USD 99`. There is no
+  currency conversion.
 - **Discounts:** 20 % for annual billing.
 - **Policies:** refund (14 days), free trial (7 days, Pro), cancellation (any time).
 - **Allowed links:** the Hisaab Pro pricing, help, policies and sign-up pages.

@@ -69,7 +69,6 @@ export interface PriceRule {
   product: string
   aliases: string[]
   price: string
-  other_prices: string[]
 }
 
 export interface Discount {

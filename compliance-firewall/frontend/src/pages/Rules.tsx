@@ -29,6 +29,14 @@ const SAFE_MESSAGE_FIELDS: { key: keyof SafeMessages; label: string; hint: strin
   { key: 'general', label: 'General', hint: 'Shown when the check itself fails (Error) or on a security hit' },
 ]
 
+const CURRENCIES = ['USD', 'PKR']
+
+/** The API keeps a price as one string ("USD 49", "Rs 4,999"); the form edits amount and currency. */
+const splitPrice = (price: string) => ({
+  amount: price.replace(/,/g, '').match(/\d+(?:\.\d+)?/)?.[0] ?? '',
+  currency: /rs|pkr|rupee|₨/i.test(price) ? 'PKR' : 'USD',
+})
+
 const splitList = (text: string) =>
   text
     .split(',')
@@ -182,7 +190,7 @@ export function RulesPage() {
               <button
                 type="button"
                 className="btn ghost small"
-                onClick={() => set('prices', [...draft.prices, { product: '', aliases: [], price: '', other_prices: [] }])}
+                onClick={() => set('prices', [...draft.prices, { product: '', aliases: [], price: '' }])}
               >
                 <Plus size={14} /> Add plan
               </button>
@@ -191,12 +199,14 @@ export function RulesPage() {
             <div className="form-table prices">
               <div className="form-head">
                 <span>Product</span>
-                <span>Also called</span>
-                <span>Official price</span>
-                <span>Other currencies</span>
+                <span>Aliases (comma separated)</span>
+                <span>Amount</span>
+                <span>Currency</span>
                 <span />
               </div>
-              {draft.prices.map((price, i) => (
+              {draft.prices.map((price, i) => {
+                const { amount, currency } = splitPrice(price.price)
+                return (
                 <div key={i} className="form-row">
                   <input
                     aria-label="Product"
@@ -211,25 +221,35 @@ export function RulesPage() {
                     onChange={(aliases) => setAt('prices', i, { aliases })}
                   />
                   <input
-                    aria-label="Official price"
+                    aria-label="Amount"
                     className="mono strong"
-                    value={price.price}
-                    placeholder="USD 49"
-                    onChange={(event) => setAt('prices', i, { price: event.target.value })}
+                    type="number"
+                    min={0}
+                    step="any"
+                    value={amount}
+                    placeholder="49"
+                    onChange={(event) => setAt('prices', i, { price: `${currency} ${event.target.value}` })}
                   />
-                  <ListField
-                    label="Other currency prices"
-                    values={price.other_prices}
-                    placeholder="Rs 13,999"
-                    onChange={(other_prices) => setAt('prices', i, { other_prices })}
-                  />
+                  <select
+                    aria-label="Currency"
+                    value={currency}
+                    onChange={(event) => setAt('prices', i, { price: `${event.target.value} ${amount}` })}
+                  >
+                    {CURRENCIES.map((code) => (
+                      <option key={code}>{code}</option>
+                    ))}
+                  </select>
                   <button type="button" className="icon-btn" aria-label={`Remove ${price.product}`} onClick={() => removeAt('prices', i)}>
                     <Trash2 size={15} />
                   </button>
                 </div>
-              ))}
+                )
+              })}
             </div>
-            <p className="muted small">Formats like “USD 49”, “$49” and “Rs 4,999” all work. Prices are never converted between currencies.</p>
+            <p className="muted small">
+              Aliases are other names the assistant may use. “Rs 4,999”, “4999 PKR” and “PKR 4,999.00” all match the same price. Prices are
+              never converted between currencies.
+            </p>
           </Panel>
 
           <Panel

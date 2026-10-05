@@ -233,8 +233,7 @@ curl -X POST $API/suite/run -H "$ADMIN"
    found" means no facts, no banned phrase and no security hit. "No cues left" means nothing fact-like
    remains once the pattern facts are removed.
 4. **Code checks**, run per fact:
-   - price (compared with the plan's official price in the same currency, amount within 0.01; each plan
-     has one official price per currency, in `price` plus `other_prices`);
+   - price (compared with the plan's one official price: same currency, amount within 0.01);
    - link (normalised URL must be on the allowed list);
    - percent (must be an approved discount);
    - period (must match a day count in the policy the sentence is about);
@@ -357,9 +356,8 @@ Every AI call, both extract and verify, goes through one gateway (`app/ai/govern
   - Product names and aliases must be unique.
   - Allowed links must be absolute URLs.
   - Safe messages may only link to allowed links and must not contain banned phrases.
-- **No currency conversion.** Each plan lists its official price in each currency it is sold in
-  (Pro: `USD 49` and `Rs 13,999`). `Rs 49` for Pro is a mismatch, and a price in a currency the plan
-  has no official price for is rejected.
+- **No currency conversion.** Each plan has one official price in one currency (Pro: `USD 49`).
+  A price for Pro in any other currency, such as `Rs 49` or `Rs 13,999`, is a mismatch.
 - **`simulate=` only works with `DEBUG=true`.** Otherwise it returns 403.
 - **Deleting or editing a rule version isn't possible.** Restoring an old version creates a new version.
 - **Concurrent saves can collide.** If two `PUT /rules` calls race for the same version number, one gets 409.
