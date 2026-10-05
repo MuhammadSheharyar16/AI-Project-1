@@ -52,6 +52,7 @@ export function Live() {
 
   const busy = exchanges.some((exchange) => exchange.pending)
   const selected = exchanges.find((exchange) => exchange.id === selectedId) ?? null
+  const simulateLocked = health !== null && !health.debug
 
   useEffect(() => {
     chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: 'smooth' })
@@ -120,7 +121,7 @@ export function Live() {
               <span className={`group-label ${GROUP_TONE[group]}`}>{group}</span>
               <div className="chips">
                 {SCENARIOS.filter((scenario) => scenario.group === group).map((scenario) => {
-                  const locked = scenario.simulate !== undefined && health !== null && !health.debug
+                  const locked = scenario.simulate !== undefined && simulateLocked
                   return (
                     <button
                       key={scenario.id}
@@ -142,6 +143,12 @@ export function Live() {
             </div>
           ))}
         </div>
+        {simulateLocked && (
+          <p className="warn-text small scenario-foot" role="note">
+            “Checker crashes” and “Checker times out” are switched off: set <code>DEBUG=true</code> in <code>backend/.env</code> and
+            restart the backend to demo them.
+          </p>
+        )}
         <p className="muted small scenario-foot">
           Two more cases live on other pages: edit a price in <Link to="/rules">Trusted rules</Link>, then re-check an old answer
           from the <Link to="/audit">Audit log</Link>; and run all 50 labelled answers in the <Link to="/suite">Test suite</Link>.
@@ -188,11 +195,17 @@ export function Live() {
                   <span className="avatar bot">
                     <Bot size={14} />
                   </span>
-                  <button
-                    type="button"
+                  {/* A div, not a button: the answer can contain links, which may not nest inside a button. */}
+                  <div
                     className={`bubble bot ${exchange.id === selectedId ? 'selected' : ''}`}
+                    tabIndex={0}
+                    title="Show this answer in the compliance view"
                     onClick={() => setSelectedId(exchange.id)}
-                    aria-label="Show this answer in the compliance view"
+                    onKeyDown={(event) => {
+                      if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return
+                      event.preventDefault()
+                      setSelectedId(exchange.id)
+                    }}
                   >
                     {exchange.pending ? (
                       <span className="typing">
@@ -205,7 +218,7 @@ export function Live() {
                     ) : (
                       <span className="muted">The assistant is unavailable right now. Nothing was shown.</span>
                     )}
-                  </button>
+                  </div>
                 </motion.div>
               </div>
             ))}

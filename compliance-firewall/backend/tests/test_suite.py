@@ -18,6 +18,12 @@ def test_dataset_is_balanced_and_covers_every_check() -> None:
         assert needed in categories, needed
 
 
+def test_suite_info_reports_dataset_size(client: TestClient) -> None:
+    response = client.get("/suite")
+    assert response.status_code == 200
+    assert response.json() == {"total": 50, "approve": 25, "reject": 25}
+
+
 def test_suite_meets_targets(client: TestClient, fake_llm: FakeLLM) -> None:
     response = client.post("/suite/run")
     assert response.status_code == 200

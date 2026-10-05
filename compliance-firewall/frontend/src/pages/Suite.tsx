@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { Check, Cpu, FlaskConical, Play, ShieldCheck, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { api, ApiError } from '../api/client'
-import type { SuiteRow } from '../api/types'
+import type { SuiteInfo, SuiteRow } from '../api/types'
 import { DecisionBadge, EmptyState, ErrorNote, Panel, Segmented, TiltCard } from '../components/ui'
 import { useStore } from '../store'
 
@@ -40,6 +40,11 @@ export function Suite() {
   const [seconds, setSeconds] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<RowFilter>('all')
+  const [info, setInfo] = useState<SuiteInfo | null>(null)
+
+  useEffect(() => {
+    api.suiteInfo().then(setInfo, () => setInfo(null))
+  }, [])
 
   useEffect(() => {
     if (!running) return
@@ -67,6 +72,10 @@ export function Suite() {
   const rejects = suite?.rows.filter((row) => row.label === 'reject') ?? []
   const approves = suite?.rows.filter((row) => row.label === 'approve') ?? []
   const wrong = suite?.rows.filter((row) => !row.correct) ?? []
+  // Dataset size: from the backend, or from the last run if that request failed.
+  const total = info?.total ?? suite?.total ?? null
+  const shouldPass = info?.approve ?? (suite ? approves.length : null)
+  const shouldBlock = info?.reject ?? (suite ? rejects.length : null)
   const errors = suite?.rows.filter((row) => row.decision === 'Error').length ?? 0
   const rows: SuiteRow[] = !suite
     ? []
@@ -83,10 +92,15 @@ export function Suite() {
       <div className="page-head">
         <div>
           <h1>Test suite</h1>
-          <p>50 labelled AI answers (25 should pass, 25 should be blocked), run in one batch on the latest rules.</p>
+          <p>
+            {total === null
+              ? 'Labelled AI answers'
+              : `${total} labelled AI answers (${shouldPass} should pass, ${shouldBlock} should be blocked)`}
+            , run in one batch on the latest rules.
+          </p>
         </div>
         <button type="button" className="btn primary big" disabled={running} onClick={run}>
-          <Play size={16} /> {running ? 'Running…' : suite ? 'Run again' : 'Run all 50 answers'}
+          <Play size={16} /> {running ? 'Running…' : suite ? 'Run again' : total === null ? 'Run all answers' : `Run all ${total} answers`}
         </button>
       </div>
 
@@ -98,7 +112,7 @@ export function Suite() {
             <div className="scan-line" />
             <FlaskConical size={30} />
           </div>
-          <strong>Checking 50 answers… {seconds}s</strong>
+          <strong>Checking {total ?? 'the'} answers… {seconds}s</strong>
           <span className="muted small">
             Answers with promises need a free-tier AI call each, so a full run can take from a few seconds to a couple of minutes. Every result is
             saved to the audit log.

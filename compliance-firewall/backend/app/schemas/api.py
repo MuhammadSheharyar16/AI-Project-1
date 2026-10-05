@@ -174,6 +174,14 @@ class SuiteItem(BaseModel):
     category: str
 
 
+class SuiteInfo(BaseModel):
+    """Size of the labelled dataset, so the UI never hardcodes it."""
+
+    total: int
+    approve: int
+    reject: int
+
+
 class SuiteRow(BaseModel):
     id: str
     category: str

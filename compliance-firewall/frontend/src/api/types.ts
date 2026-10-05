@@ -148,6 +148,12 @@ export interface AuditPage {
   items: AuditEntry[]
 }
 
+export interface SuiteInfo {
+  total: number
+  approve: number
+  reject: number
+}
+
 export interface SuiteRow {
   id: string
   category: string

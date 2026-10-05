@@ -12,6 +12,7 @@ import type {
   RuleVersionInfo,
   Simulate,
   Source,
+  SuiteInfo,
   SuiteReport,
 } from './types'
 
@@ -118,6 +119,8 @@ export const api = {
     request<Review>(`/audit/${id}/review`, post({ reviewer, verdict, note: note || null })),
 
   governance: () => request<GovernanceReport>('/governance'),
+
+  suiteInfo: () => request<SuiteInfo>('/suite'),
 
   runSuite: () => request<SuiteReport>('/suite/run', post()),
 }

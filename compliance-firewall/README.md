@@ -147,7 +147,7 @@ flowchart LR
 | `POST /check` | Check any given answer |
 | `GET/PUT /rules`, `POST /rules/restore/{v}` | Read, save (new version) or restore trusted rules |
 | `GET /audit`, `POST /audit/{id}/recheck`, `POST /audit/{id}/review` | Audit log, re-check on the latest rules, human review |
-| `POST /suite/run` | Run the 50 labelled test answers |
+| `GET /suite`, `POST /suite/run` | Count the labelled test answers; run all 50 |
 | `GET /governance` | AI configuration, usage, security controls |
 
 ---

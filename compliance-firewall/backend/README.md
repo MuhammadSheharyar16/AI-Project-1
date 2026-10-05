@@ -201,6 +201,7 @@ curl -X POST $API/suite/run -H "$ADMIN"
 | POST | `/audit/{id}/recheck` | – | check response (`source=recheck`, `recheck_of=id`) |
 | POST 🔒 | `/audit/{id}/review` | `{reviewer, verdict: agree\|disagree, note?}` | 201 with the review (append-only; the decision itself never changes) |
 | GET  | `/governance` | – | AI config, security controls, decision counts, AI usage, human-review rates |
+| GET  | `/suite` | – | `{total, approve, reject}`: size of the labelled dataset |
 | POST 🔒 | `/suite/run` | – | `{total, leaked, caught_rate, false_block_rate, ai_calls, rule_version, rows}` |
 
 🔒 = needs `X-Admin-Token` when `ADMIN_TOKEN` is set. Every other endpoint except `/health` needs
