@@ -7,6 +7,7 @@ from app.ai import mock_assistant
 from app.api.deps import get_firewall_context, get_session, get_simulate, rate_limit, require_client
 from app.pipeline import firewall
 from app.pipeline.firewall import FirewallContext, Simulate
+from app.rules.cache import RulesUnavailable
 from app.schemas.api import ChatRequest, CheckRequest, CheckResponse
 
 router = APIRouter(tags=["firewall"], dependencies=[Depends(require_client), Depends(rate_limit)])
@@ -18,7 +19,11 @@ ContextDep = Annotated[FirewallContext, Depends(get_firewall_context)]
 @router.post("/chat", response_model=CheckResponse)
 async def chat(body: ChatRequest, session: SessionDep, ctx: ContextDep) -> CheckResponse:
     """The mock assistant drafts an answer, then the firewall checks it."""
-    answer = mock_assistant.draft(body.question, body.mode)
+    try:
+        rules = ctx.cache.get_rules(session)[1]
+    except RulesUnavailable:
+        rules = None  # the firewall reports this itself
+    answer = mock_assistant.draft(body.question, body.mode, rules)
     decision = await firewall.run(body.question, answer, session, ctx, source="chat")
     return CheckResponse.from_decision(decision)
 

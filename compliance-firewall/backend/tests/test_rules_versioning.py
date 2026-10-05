@@ -5,8 +5,10 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
+from app.ai import mock_assistant
 from app.rules import repository
 from app.rules.seed import SEED_RULES
+from app.schemas.rules import Rules
 
 
 def seed() -> dict[str, Any]:
@@ -106,6 +108,24 @@ def test_cache_reloads_only_when_version_changes(client: TestClient) -> None:
     assert trace_note(changed, "load_rules") == "reloaded (v2)"
     assert changed["compliance"]["decision"] == "Rejected"
     assert trace_note(check(client, answer), "load_rules") == "cache hit (v2)"
+
+
+def test_accurate_chat_quotes_the_current_prices(client: TestClient) -> None:
+    client.put("/rules", json={"author": "tester", "rules": set_price(seed(), "Basic plan", "Rs 499")})
+    body = client.post("/chat", json={"question": "How much is Basic?", "mode": "accurate"}).json()
+    assert body["compliance"]["decision"] == "Approved"
+    assert "Basic plan is Rs 499" in body["compliance"]["raw_answer"]
+
+
+def test_accurate_drafts_follow_edited_policies_and_discounts() -> None:
+    edited = seed()
+    edited["discounts"] = [{"name": "Annual billing", "percent": 25}]
+    edited["policies"][0]["text"] = "Refunds are available within 30 days of purchase."
+    rules = Rules.model_validate(edited)
+    assert mock_assistant.draft("Any discounts?", "accurate", rules) == "Annual billing gives you a 25% discount."
+    assert mock_assistant.draft("Refund policy?", "accurate", rules) == edited["policies"][0]["text"]
+    assert mock_assistant.draft("Is there a free trial?", "accurate", rules) == edited["policies"][1]["text"]
+    assert "guaranteed refund" in mock_assistant.draft("Refund policy?", "mistakes", rules)
 
 
 # --- audit log --------------------------------------------------------------

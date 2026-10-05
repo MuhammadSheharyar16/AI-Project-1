@@ -31,6 +31,12 @@ class Settings(BaseSettings):
     rate_limit_per_minute: int = Field(default=60, ge=1, le=10000)
     # Privacy: redact personal data (emails, phones, cards, CNIC) before it is stored in the audit log.
     audit_redact_pii: bool = True
+    # Folder of the static demo site. When set, saving rules rewrites its prices, discount and
+    # policy wording (see app/rules/demo_site.py). Empty = the site is left alone.
+    demo_site_dir: str = ""
+    # GitHub Pages repository ("owner/name") that serves the demo site. When set, the pages are
+    # pushed there after every rules save, through the GitHub CLI login. Empty = never published.
+    demo_site_repo: str = ""
 
     @property
     def cors_origin_list(self) -> list[str]:

@@ -94,6 +94,10 @@ Other commands: `npm run build` (type-check and build to `dist/`), `npm run prev
 [demo-site/](demo-site/) is plain HTML and CSS, already live on GitHub Pages. To view it locally, open
 `demo-site/index.html` in a browser or run `python -m http.server` inside the folder.
 
+The site is static, so saving a rule does not change it. After a rule change, run
+`python -m app.rules.demo_site` inside `backend/` to rewrite the prices, discount and policy wording
+from the latest rules, then commit and publish `demo-site/`.
+
 ---
 
 ## Architecture
