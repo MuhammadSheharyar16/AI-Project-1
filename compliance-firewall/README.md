@@ -129,15 +129,17 @@ flowchart LR
 
 | Layer | Modules |
 |-------|---------|
-| API routes (thin) | `api/routes/` — `chat`, `check`, `rules`, `audit`, `suite`, `governance`, `health` |
-| Security | `core/security.py` (rate limiter, headers), `api/deps.py` (token guards) |
-| Orchestrator | `pipeline/firewall.py` |
+| Middlewares | `middlewares/` — request id + request log, security headers, global error handler |
+| API routes (thin) | `api/routes/` — `chat`, `check`, `rules`, `audit`, `suite`, `governance`, `health`; each calls one service |
+| Services | `services/` — firewall (+ audit save), rules (+ demo-site sync), audit, suite, governance report |
+| Security | `core/security.py` (rate limiter), `api/deps.py` (token guards), `core/exceptions.py` (app errors) |
+| Orchestrator | `pipeline/firewall.py` (decision only, no DB writes) |
 | Fact extraction | `pipeline/extract.py`, `pipeline/normalize.py` (patterns), `pipeline/extract_ai.py` (AI) |
 | Checks | `pipeline/checks/` — prices, percents, periods, dates, links, banned, unlimited, security, `policy_ai` |
 | Decision | `pipeline/decide.py` |
 | AI | `ai/governance.py` (gateway), `ai/llm.py` (Groq client), `ai/prompts.py`, `ai/redact.py`, `ai/mock_assistant.py` |
 | Rules | `rules/` — versioned repository, cache, v1 seed |
-| Audit | `audit/` — entries, reviews, governance report |
+| Audit | `audit/` — entries, reviews |
 
 **Main endpoints**
 

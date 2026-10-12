@@ -21,9 +21,7 @@ SAFE_MESSAGE_FOR = {
 
 def decide(results: list[FactResult]) -> tuple[DecisionStatus, str | None]:
     """Return (status, safe message key). Approved only if every result is OK."""
-    failures = sorted(
-        (r for r in results if not r.ok and not r.skipped), key=lambda r: (r.fact.start, r.fact.end)
-    )
+    failures = sorted((r for r in results if not r.ok and not r.skipped), key=lambda r: (r.fact.start, r.fact.end))
     if not failures:
         return "Approved", None
     return "Rejected", SAFE_MESSAGE_FOR.get(failures[0].fact.type, "general")

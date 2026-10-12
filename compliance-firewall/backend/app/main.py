@@ -1,4 +1,4 @@
-"""App factory: security middleware, CORS, routers, and startup (create/migrate tables + seed)."""
+"""App factory: middlewares, error handlers, routers, and startup (create/migrate tables + seed)."""
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -13,7 +13,10 @@ from app.api.routes import audit, chat, governance, health, rules, suite
 from app.core.config import Settings, get_settings
 from app.core.db import create_tables, make_engine, migrate_missing_columns
 from app.core.logging import configure_logging, get_logger
-from app.core.security import ClientRateLimiter, SecurityHeadersMiddleware
+from app.core.security import ClientRateLimiter
+from app.middlewares.error_handler_middleware import register_error_handlers
+from app.middlewares.request_id_middleware import RequestIdMiddleware
+from app.middlewares.security_headers_middleware import SecurityHeadersMiddleware
 from app.rules.cache import RulesCache
 from app.rules.seed import seed_if_empty
 
@@ -51,6 +54,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_headers=["Content-Type", "X-API-Key", "X-Admin-Token"],
     )
     app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(RequestIdMiddleware)  # added last = outermost: sees every request
+    register_error_handlers(app)
     if not settings.debug and not settings.api_token.get_secret_value():
         log.warning("API_TOKEN is not set: check, chat and audit endpoints are closed (403)")
     for module in (health, chat, rules, audit, suite, governance):

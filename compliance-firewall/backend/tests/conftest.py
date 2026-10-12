@@ -1,4 +1,5 @@
-"""Shared fixtures: temp SQLite per test, FakeLLM injected via deps, and a TestClient."""
+"""Shared fixtures: temp SQLite per test, FakeLLM injected via deps, a TestClient, and (for unit
+tests of the services) a seeded DB session plus a firewall context."""
 
 import asyncio
 import json
@@ -9,15 +10,18 @@ from typing import Any
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from sqlmodel import Session
 
 from app.ai.governance import AIBudget, AIGateway, AIPolicy
 from app.ai.prompts import CLAIM_END, CLAIM_START, EXTRACT_TASK, POLICIES_MARKER, PROMPT_VERSION
 from app.api.deps import get_llm
 from app.core.config import Settings
+from app.core.db import create_tables, make_engine
 from app.main import create_app
-from app.rules.seed import SEED_RULES
+from app.pipeline.firewall import FirewallContext
+from app.rules.cache import RulesCache
+from app.rules.seed import SEED_RULES, seed_if_empty
 from app.schemas.rules import Rules
-
 
 TEST_MODEL = "test-model"
 
@@ -61,13 +65,20 @@ class FakeLLM:
             if not any(k in lowered for k in self.TOPICS.get(policy["id"], ())):
                 continue
             if any(cue in lowered for cue in self.CONTRADICTION_CUES):
-                return {"verdict": "contradicted", "policy_id": policy["id"], "quote": "",
-                        "reason": f"conflicts with the {policy['title']}"}
+                return {
+                    "verdict": "contradicted",
+                    "policy_id": policy["id"],
+                    "quote": "",
+                    "reason": f"conflicts with the {policy['title']}",
+                }
             first_sentence = re.split(r"(?<=\.)\s+", policy["text"])[0]
-            return {"verdict": "supported", "policy_id": policy["id"], "quote": first_sentence,
-                    "reason": f"matches the {policy['title']}"}
-        return {"verdict": "not_covered", "policy_id": None, "quote": "",
-                "reason": "no policy covers this claim"}
+            return {
+                "verdict": "supported",
+                "policy_id": policy["id"],
+                "quote": first_sentence,
+                "reason": f"matches the {policy['title']}",
+            }
+        return {"verdict": "not_covered", "policy_id": None, "quote": "", "reason": "no policy covers this claim"}
 
 
 class InventedQuoteLLM:
@@ -78,9 +89,12 @@ class InventedQuoteLLM:
 
     async def llm_json(self, prompt: str, timeout: float) -> dict[str, Any]:
         self.calls += 1
-        return {"verdict": "supported", "policy_id": "refund",
-                "quote": "Refunds are available at any time, no matter what.",
-                "reason": "looks fine"}
+        return {
+            "verdict": "supported",
+            "policy_id": "refund",
+            "quote": "Refunds are available at any time, no matter what.",
+            "reason": "looks fine",
+        }
 
 
 class SlowLLM:
@@ -132,6 +146,36 @@ def use_llm(app: FastAPI, llm: Any) -> None:
 
 
 def gateway(llm: Any, timeout: float = 1.0, *, enabled: bool = True, per_minute: int = 1000) -> AIGateway:
-    policy = AIPolicy(enabled=enabled, budget=AIBudget(per_minute), timeout_s=timeout,
-                      model="test-model", prompt_version=PROMPT_VERSION)
+    policy = AIPolicy(
+        enabled=enabled,
+        budget=AIBudget(per_minute),
+        timeout_s=timeout,
+        model="test-model",
+        prompt_version=PROMPT_VERSION,
+    )
     return AIGateway(llm, policy)
+
+
+@pytest.fixture
+def empty_session(tmp_path) -> Iterator[Session]:
+    """A real SQLite database with the tables created but no rules saved."""
+    engine = make_engine(f"sqlite:///{tmp_path.as_posix()}/unit.db")
+    create_tables(engine)
+    with Session(engine) as session:
+        yield session
+    engine.dispose()
+
+
+@pytest.fixture
+def db_session(empty_session: Session) -> Session:
+    """A real SQLite database seeded with rules v1."""
+    seed_if_empty(empty_session)
+    return empty_session
+
+
+@pytest.fixture
+def firewall_ctx(fake_llm: FakeLLM) -> FirewallContext:
+    policy = AIPolicy(
+        enabled=True, budget=AIBudget(1000), timeout_s=1.0, model=TEST_MODEL, prompt_version=PROMPT_VERSION
+    )
+    return FirewallContext(llm=fake_llm, cache=RulesCache(), ai=policy)

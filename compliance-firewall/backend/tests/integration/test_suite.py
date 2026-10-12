@@ -1,9 +1,9 @@
 from collections import Counter
 
+from conftest import FakeLLM
 from fastapi.testclient import TestClient
 
-from app.pipeline.suite import load_items
-from conftest import FakeLLM
+from app.services.suite_service import load_items
 
 
 def test_dataset_is_balanced_and_covers_every_check() -> None:
@@ -12,9 +12,25 @@ def test_dataset_is_balanced_and_covers_every_check() -> None:
     assert len({i.id for i in items}) == 50
     assert Counter(i.label for i in items) == {"approve": 25, "reject": 25}
     categories = {i.category for i in items}
-    for needed in ("price_format", "multi_price", "link_format", "discount", "period", "date", "policy_promise",
-                   "tricky_clean", "price_mismatch", "currency_mismatch", "unknown_product", "link",
-                   "banned_phrase", "unlimited", "promise_not_covered", "promise_contradicted", "security"):
+    for needed in (
+        "price_format",
+        "multi_price",
+        "link_format",
+        "discount",
+        "period",
+        "date",
+        "policy_promise",
+        "tricky_clean",
+        "price_mismatch",
+        "currency_mismatch",
+        "unknown_product",
+        "link",
+        "banned_phrase",
+        "unlimited",
+        "promise_not_covered",
+        "promise_contradicted",
+        "security",
+    ):
         assert needed in categories, needed
 
 

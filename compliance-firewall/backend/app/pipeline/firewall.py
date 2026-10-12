@@ -1,5 +1,7 @@
 """Orchestrator: rules -> extract (pattern + security scan) -> code checks -> AI extraction ->
-code checks on AI facts -> AI promise check -> decide -> audit. Fails closed on anything."""
+code checks on AI facts -> AI promise check -> decide. Fails closed on anything.
+
+Returns the decision only: saving it to the audit log is the firewall service's job."""
 
 import asyncio
 from collections import Counter
@@ -13,13 +15,18 @@ from sqlmodel import Session
 
 from app.ai.governance import AIGateway, AIPolicy, with_timeout
 from app.ai.llm import LLMClient
-from app.ai.redact import redact_deep, redact_text
-from app.audit import repository as audit_repo
 from app.core.logging import get_logger
-from app.models.audit_entry import AuditEntry
 from app.pipeline import extract_ai
 from app.pipeline.checks import (
-    banned, dates, links, percents, periods, policy_ai, prices, security, unlimited,
+    banned,
+    dates,
+    links,
+    percents,
+    periods,
+    policy_ai,
+    prices,
+    security,
+    unlimited,
 )
 from app.pipeline.decide import decide, safe_message
 from app.pipeline.extract import extract
@@ -92,8 +99,7 @@ def _code_check(fact: Fact, answer: str, rules: Rules) -> FactResult | None:
     return None
 
 
-def _run_code_checks(facts: list[Fact], answer: str, rules: Rules,
-                     results: list[FactResult]) -> list[Fact]:
+def _run_code_checks(facts: list[Fact], answer: str, rules: Rules, results: list[FactResult]) -> list[Fact]:
     """Append code-check results; return the promises still waiting for the AI."""
     pending = []
     for fact in facts:
@@ -116,7 +122,8 @@ def _unchecked(facts: list[Fact], results: list[FactResult], status: DecisionSta
     """
     judged = {(r.fact.type, r.fact.start, r.fact.end) for r in results}
     reason = (
-        "not checked: the check stopped with an error" if status == "Error"
+        "not checked: the check stopped with an error"
+        if status == "Error"
         else "not checked: AI check skipped because a code check already failed"
     )
     return [
@@ -144,9 +151,9 @@ async def run(
     ctx: FirewallContext,
     *,
     source: Source,
-    recheck_of: int | None = None,
     simulate: Simulate | None = None,
-) -> Decision:
+) -> tuple[Decision, Rules | None]:
+    """Return the decision and the rules it used (None if they could not be loaded)."""
     started = perf_counter()
     tracer = _Tracer()
     gateway = AIGateway(ctx.llm, ctx.ai)
@@ -190,10 +197,11 @@ async def run(
                         facts += found.facts
                         pending += _run_code_checks(found.facts, answer, rules, results)
                         failed = _failed(results)
-                        step.note = (f"{len(found.facts)} new fact(s), {found.discarded} discarded "
-                                     f"(ungrounded/invalid), {found.duplicates} already found, "
-                                     f"{found.cadence} cadence ignored"
-                                     + (f", {failed} failed code checks" if failed else ""))
+                        step.note = (
+                            f"{len(found.facts)} new fact(s), {found.discarded} discarded "
+                            f"(ungrounded/invalid), {found.duplicates} already found, "
+                            f"{found.cadence} cadence ignored" + (f", {failed} failed code checks" if failed else "")
+                        )
                 else:
                     tracer.skip("pattern rules explained every cue", "ai_extract")
 
@@ -220,50 +228,18 @@ async def run(
     results += _unchecked(facts, results, status)
     results.sort(key=lambda r: (r.fact.start, r.fact.end))
     decision = Decision(
-        status=status, customer_text=customer_text, raw_answer=answer, rule_version=version,
-        results=results, ai_used=gateway.calls_made > 0, ai_calls=gateway.calls_made,
-        ai_ledger=gateway.ledger, ai_model=ctx.ai.model, prompt_version=ctx.ai.prompt_version,
-        latency_ms=round((perf_counter() - started) * 1000), trace=tracer.steps, error=error,
+        status=status,
+        customer_text=customer_text,
+        raw_answer=answer,
+        rule_version=version,
+        results=results,
+        ai_used=gateway.calls_made > 0,
+        ai_calls=gateway.calls_made,
+        ai_ledger=gateway.ledger,
+        ai_model=ctx.ai.model,
+        prompt_version=ctx.ai.prompt_version,
+        latency_ms=round((perf_counter() - started) * 1000),
+        trace=tracer.steps,
+        error=error,
     )
-    return _record(session, decision, question, source, recheck_of, rules, ctx.redact_audit)
-
-
-def _record(
-    session: Session, decision: Decision, question: str, source: Source,
-    recheck_of: int | None, rules: Rules | None, redact_pii: bool = True,
-) -> Decision:
-    """Save the audit entry. If saving fails, nothing may be shown: downgrade to Error.
-
-    With `redact_pii`, personal data is redacted in everything stored. The live response still
-    carries the original text; stored fact offsets refer to the original (unredacted) answer.
-    """
-    audit_step = TraceStep(step="audit", note="saved" + (" (PII redacted)" if redact_pii else ""))
-    decision.trace.append(audit_step)
-    started = perf_counter()
-    scrub_text = redact_text if redact_pii else (lambda t: t)
-    scrub = redact_deep if redact_pii else (lambda v: v)
-    try:
-        entry = audit_repo.save(session, AuditEntry(
-            question=scrub_text(question), raw_answer=scrub_text(decision.raw_answer),
-            shown_to_customer=scrub_text(decision.customer_text), decision=decision.status,
-            rule_version=decision.rule_version,
-            results_json=scrub([r.model_dump(mode="json") for r in decision.results]),
-            trace_json=[s.model_dump(mode="json") for s in decision.trace],
-            ai_used=decision.ai_used, latency_ms=decision.latency_ms, source=source,
-            recheck_of=recheck_of, error=decision.error,
-            ai_model=decision.ai_model, prompt_version=decision.prompt_version,
-            ai_calls_json=[c.model_dump(mode="json") for c in decision.ai_ledger],
-        ))
-    except Exception as exc:
-        session.rollback()
-        log.error("audit save failed: %s", _describe(exc))
-        audit_step.status, audit_step.note = "failed", _describe(exc)
-        decision.status = "Error"
-        decision.customer_text = safe_message("general", rules)
-        decision.error = f"audit save failed: {_describe(exc)}"
-        return decision
-    audit_step.ms = round((perf_counter() - started) * 1000, 2)
-    audit_step.note = f"saved as #{entry.id}" + (" (PII redacted)" if redact_pii else "")
-    decision.audit_id = entry.id
-    log.info("decision #%s %s (v%s, source=%s)", entry.id, decision.status, decision.rule_version, source)
-    return decision
+    return decision, rules

@@ -79,24 +79,33 @@ Responses then also carry `Strict-Transport-Security`.
 ## 3. Test
 
 ```bash
-python -m pytest
+python -m pytest        # all tests
+ruff check . && ruff format --check . && mypy   # lint, format and types (config in pyproject.toml)
 ```
 
+`pre-commit` runs ruff and mypy before every commit. Set it up once, from the repository root, with the
+backend venv active: `pre-commit install`.
+
 The tests use a temporary SQLite file per test and a `FakeLLM` injected through
-`app/api/deps.py::get_llm`. They are fast, free and repeatable, and never call Groq. Here's what each test file covers:
+`app/api/deps.py::get_llm`. They are fast, free and repeatable, and never call Groq. Here's what each test file covers.
+
+`tests/unit/` mirrors `app/` folder by folder; `tests/integration/` drives full requests through the API.
 
 | File | Covers |
 |------|--------|
-| `tests/unit/test_normalize.py` | Every price format, currency handling (no conversion), URL normalisation |
-| `tests/unit/test_extract.py`   | Facts and offsets, linking prices to products, percents, periods (words, weeks, months), dates, links, promises, "feel free" |
-| `tests/unit/test_checks.py`    | Each code check; `decide`; the AI verified-quote rule (including an invented quote); the Groq client (429, 5xx, bad JSON, network error, no key) |
-| `tests/test_client_cases.py`   | The 12 brief cases, plus fail-closed behaviour for a slow AI, a crashing AI, a 429, a missing key and a failed audit write |
-| `tests/test_rules_versioning.py` | Seed, N+1 versions, restore, validation (422 and no new version), cache reload, audit filters |
-| `tests/test_suite.py`          | 50 labelled answers: 0 leaked, ≥ 95 % caught, ≤ 10 % of approves blocked |
-| `tests/test_ai_extraction.py`  | AI-assisted extraction: the gate, grounding, discarded hallucinations and duplicates, code checks on AI facts, malformed output → Error |
-| `tests/test_ai_security.py`    | Injection, hidden-character, secret, card and CNIC scan; PII redaction; prompt fencing; admin token; no API-key leaks |
-| `tests/test_ai_governance.py`  | Call ledger, model and prompt version, kill switch, budget, failed-call outcomes, human reviews, rule authors, `/governance` |
-| `tests/test_hardening.py`      | Client token, per-client rate limit, security headers and HSTS, CORS, PII redaction at rest (plus recheck of a leak), migration of an old database, AI cadence guard |
+| `tests/unit/pipeline/test_normalize.py` | Every price format, currency handling (no conversion), URL normalisation |
+| `tests/unit/pipeline/test_extract.py`   | Facts and offsets, linking prices to products, percents, periods (words, weeks, months), dates, links, promises, "feel free" |
+| `tests/unit/pipeline/checks/test_checks.py` | Each code check; `decide`; the AI verified-quote rule (including an invented quote); the Groq client (429, 5xx, bad JSON, network error, no key) |
+| `tests/unit/rules/test_demo_site.py` | Demo-site page rewrite from the rules, publish only changed pages, sync on rules save |
+| `tests/unit/services/test_*.py` | Each service on a real temp SQLite DB: audit save and fail-closed on save error, PII redaction at rest, reviews and rechecks, rule save/restore and demo-site sync, suite scoring, governance report |
+| `tests/unit/middlewares/test_*.py` | Request id (generated, reused, unsafe ids replaced, one log line per request); error handler (status + detail, `Retry-After`, no internal details on a 500) |
+| `tests/integration/test_client_cases.py`   | The 12 brief cases, plus fail-closed behaviour for a slow AI, a crashing AI, a 429, a missing key and a failed audit write |
+| `tests/integration/test_rules_versioning.py` | Seed, N+1 versions, restore, validation (422 and no new version), cache reload, audit filters |
+| `tests/integration/test_suite.py`          | 50 labelled answers: 0 leaked, ≥ 95 % caught, ≤ 10 % of approves blocked |
+| `tests/integration/test_ai_extraction.py`  | AI-assisted extraction: the gate, grounding, discarded hallucinations and duplicates, code checks on AI facts, malformed output → Error |
+| `tests/integration/test_ai_security.py`    | Injection, hidden-character, secret, card and CNIC scan; PII redaction; prompt fencing; admin token; no API-key leaks |
+| `tests/integration/test_ai_governance.py`  | Call ledger, model and prompt version, kill switch, budget, failed-call outcomes, human reviews, rule authors, `/governance` |
+| `tests/integration/test_hardening.py`      | Client token, per-client rate limit, security headers and HSTS, CORS, PII redaction at rest (plus recheck of a leak), migration of an old database, AI cadence guard |
 
 ## 4. API
 
@@ -370,10 +379,10 @@ Every AI call, both extract and verify, goes through one gateway (`app/ai/govern
 - **Python version.** It was developed on Python 3.13 because 3.11 wasn't installed. The code only uses
   3.11-compatible features.
 - **Extra files:**
-  - `pytest.ini` (import path);
+  - `pyproject.toml` (pytest import path, ruff and mypy settings);
   - `.gitignore` (`.env`, the venv and `data/*.db`);
-  - `app/pipeline/suite.py`, the suite runner. Business logic can't live in route handlers, and the tree
-    had no module for the suite.
+  - `app/services/`, the business-logic layer between routes and the orchestrator/repositories
+    (firewall + audit save, rules + demo-site sync, audit, suite runner, governance report).
   - `app/pipeline/checks/dates.py`. The POC sheet asks for dates to be checked; the brief only
     covered day periods.
   - AI-assisted extraction, AI security and AI governance. These were requested after the brief, and
@@ -383,7 +392,7 @@ Every AI call, both extract and verify, goes through one gateway (`app/ai/govern
     - `app/ai/governance.py`;
     - `app/ai/redact.py`;
     - `app/models/audit_review.py`;
-    - `app/audit/report.py`;
+    - `app/services/governance_service.py`;
     - `app/api/routes/governance.py`.
 - **Database migration.** Startup runs `create_all` for new tables. It then runs an additive migration
   (`migrate_missing_columns` in `app/core/db.py`) that adds any model column an older database lacks,
@@ -409,15 +418,19 @@ The tables are created on startup and rules v1 is seeded when the table is empty
 
 ```
 app/
-  main.py            app factory, CORS, routers, startup (create tables + seed)
-  core/              settings, engine/session, logging
+  main.py            app factory: middlewares, error handlers, CORS, routers, startup (create tables + seed)
+  core/              settings, engine/session, logging (with request id), exceptions, rate limiter
+  middlewares/       request id + request log, security headers, global error handler
   models/            SQLModel tables: RuleSet, AuditEntry
   schemas/           Pydantic models: rules, facts, decision, API bodies
   rules/             versioned repository, cache, seed
-  pipeline/          firewall orchestrator, extract, normalize, decide, suite runner, checks/*
+  services/          business logic: firewall (+ audit save), rules (+ demo-site sync), audit, suite, governance report
+  pipeline/          firewall orchestrator (decision only), extract, normalize, decide, checks/*
   ai/                LLM protocol + Groq client, prompts, governance gateway, PII redaction, mock assistant
-  audit/             audit repository (entries, reviews, stats), governance report
-  api/               deps (overridable in tests, admin token guard) + thin routes
+  audit/             audit repository (entries, reviews, stats)
+  api/               deps (overridable in tests, token guards) + thin routes (call one service each)
 data/test_answers.json   50 labelled answers (25 approve / 25 reject)
-tests/                   unit + API tests (FakeLLM, temp SQLite)
+tests/unit/              mirrors app/ (pipeline, rules, services, middlewares)
+tests/integration/       full API flows (FakeLLM, temp SQLite)
+pyproject.toml           pytest, ruff and mypy settings
 ```

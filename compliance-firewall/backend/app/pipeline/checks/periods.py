@@ -22,16 +22,23 @@ def check(fact: Fact, answer: str, rules: Rules) -> FactResult:
     policies = topic_policies(sentence_at(answer, fact.start), rules)
     if not policies:
         # Fail closed: a time period no policy talks about cannot be verified.
-        return FactResult(fact=fact, ok=False,
-                          reason=f"period mismatch: {_said(fact, days)} is not covered by any policy")
+        return FactResult(
+            fact=fact, ok=False, reason=f"period mismatch: {_said(fact, days)} is not covered by any policy"
+        )
     for policy in policies:
         if days in day_counts(policy.text):
-            return FactResult(fact=fact, ok=True, rule=f"{policy.title}: {days} days",
-                              reason="matches the policy period")
+            return FactResult(
+                fact=fact, ok=True, rule=f"{policy.title}: {days} days", reason="matches the policy period"
+            )
     described = "; ".join(
         f"{p.title} says {', '.join(str(n) for n in sorted(day_counts(p.text)))} days"
-        if day_counts(p.text) else f"{p.title} has no day limit"
+        if day_counts(p.text)
+        else f"{p.title} has no day limit"
         for p in policies
     )
-    return FactResult(fact=fact, ok=False, rule=", ".join(p.title for p in policies),
-                      reason=f"period mismatch: answer says {_said(fact, days)}, but {described}")
+    return FactResult(
+        fact=fact,
+        ok=False,
+        rule=", ".join(p.title for p in policies),
+        reason=f"period mismatch: answer says {_said(fact, days)}, but {described}",
+    )

@@ -3,6 +3,7 @@
 from typing import Any
 
 import pytest
+from conftest import FakeLLM, use_llm
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -11,7 +12,6 @@ from app.pipeline.extract import extract
 from app.pipeline.extract_ai import needs_ai
 from app.rules.seed import SEED_RULES
 from app.schemas.rules import Rules
-from conftest import FakeLLM, use_llm
 
 SAFE = SEED_RULES["safe_messages"]
 
@@ -46,6 +46,7 @@ def step(body: dict[str, Any], name: str) -> dict[str, Any]:
 
 # --- gate: only call the AI when the pattern rules left cues unexplained --------
 
+
 @pytest.mark.parametrize(
     ("answer", "expected"),
     [
@@ -73,24 +74,29 @@ def test_no_cues_means_no_ai_call(app: FastAPI, client: TestClient) -> None:
 
 # --- AI facts are grounded, then code-checked -------------------------------------
 
+
 def test_ai_price_in_words_is_approved(app: FastAPI, client: TestClient) -> None:
     answer = "Pro is forty-nine bucks a month."
-    reply = {"facts": [{"type": "price", "quote": "forty-nine bucks", "amount": 49,
-                        "currency": "USD", "product": "Pro plan"}]}
+    reply = {
+        "facts": [
+            {"type": "price", "quote": "forty-nine bucks", "amount": 49, "currency": "USD", "product": "Pro plan"}
+        ]
+    }
     body, llm = run(app, client, answer, reply)
     c = body["compliance"]
     assert c["decision"] == "Approved" and body["customer"]["text"] == answer
     [result] = c["results"]
     assert result["fact"]["source"] == "ai" and result["fact"]["raw"] == "forty-nine bucks"
-    assert answer[result["fact"]["start"]:result["fact"]["end"]] == "forty-nine bucks"
+    assert answer[result["fact"]["start"] : result["fact"]["end"]] == "forty-nine bucks"
     assert result["rule"] == "Pro plan = USD 49" and result["ok"]
     assert c["ai_used"] is True and llm.extract_calls == 1
     assert "1 new fact" in step(body, "ai_extract")["note"]
 
 
 def test_ai_wrong_price_in_words_is_rejected(app: FastAPI, client: TestClient) -> None:
-    reply = {"facts": [{"type": "price", "quote": "fifty-nine bucks", "amount": 59,
-                        "currency": "usd", "product": "pro"}]}
+    reply = {
+        "facts": [{"type": "price", "quote": "fifty-nine bucks", "amount": 59, "currency": "usd", "product": "pro"}]
+    }
     body, _ = run(app, client, "Pro is fifty-nine bucks a month.", reply)
     assert body["compliance"]["decision"] == "Rejected"
     assert body["customer"]["text"] == SAFE["pricing"]
@@ -100,7 +106,15 @@ def test_ai_wrong_price_in_words_is_rejected(app: FastAPI, client: TestClient) -
 
 
 def test_ai_obfuscated_link_is_checked(app: FastAPI, client: TestClient) -> None:
-    good = {"facts": [{"type": "link", "quote": "muhammadsheharyar16 dot github dot io slash hisaabpro slash help", "url": "https://muhammadsheharyar16.github.io/hisaabpro/help"}]}
+    good = {
+        "facts": [
+            {
+                "type": "link",
+                "quote": "muhammadsheharyar16 dot github dot io slash hisaabpro slash help",
+                "url": "https://muhammadsheharyar16.github.io/hisaabpro/help",
+            }
+        ]
+    }
     body, _ = run(app, client, "Visit muhammadsheharyar16 dot github dot io slash hisaabpro slash help for more.", good)
     assert body["compliance"]["decision"] == "Approved"
     bad = {"facts": [{"type": "link", "quote": "hisaabpro-deals dot com", "url": "https://hisaabpro-deals.com"}]}
@@ -138,18 +152,27 @@ def test_ai_fact_missing_fields_fails_closed(app: FastAPI, client: TestClient) -
 
 def test_hallucinated_invalid_and_duplicate_facts_are_dropped(app: FastAPI, client: TestClient) -> None:
     answer = "Pro is $49, about forty-nine bucks."
-    reply = {"facts": [
-        {"type": "price", "quote": "$99", "amount": 99, "currency": "USD"},          # not in answer
-        {"type": "weather", "quote": "Pro"},                                          # invalid type
-        {"type": "price", "quote": "$49", "amount": 49, "currency": "USD"},          # pattern found it
-        {"type": "price", "quote": "forty-nine  BUCKS", "amount": 49, "currency": "USD",
-         "product": "Pro plan"},                                                      # grounded loosely
-    ]}
+    reply = {
+        "facts": [
+            {"type": "price", "quote": "$99", "amount": 99, "currency": "USD"},  # not in answer
+            {"type": "weather", "quote": "Pro"},  # invalid type
+            {"type": "price", "quote": "$49", "amount": 49, "currency": "USD"},  # pattern found it
+            {
+                "type": "price",
+                "quote": "forty-nine  BUCKS",
+                "amount": 49,
+                "currency": "USD",
+                "product": "Pro plan",
+            },  # grounded loosely
+        ]
+    }
     body, _ = run(app, client, answer, reply)
     assert body["compliance"]["decision"] == "Approved"
     sources = sorted(r["fact"]["source"] for r in body["compliance"]["results"])
     assert sources == ["ai", "pattern"]
-    assert step(body, "ai_extract")["note"].startswith("1 new fact(s), 2 discarded (ungrounded/invalid), 1 already found")
+    assert step(body, "ai_extract")["note"].startswith(
+        "1 new fact(s), 2 discarded (ungrounded/invalid), 1 already found"
+    )
 
 
 @pytest.mark.parametrize("reply", [{"nope": []}, {"facts": "none"}, {"facts": [{}] * 26}])

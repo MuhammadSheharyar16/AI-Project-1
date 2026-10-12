@@ -4,17 +4,21 @@ import re
 from decimal import Decimal
 
 from app.pipeline.normalize import (
-    MONTHS, NUMBER_WORD, PRICE_RE, date_key, days, money_from_match, url,
+    MONTHS,
+    NUMBER_WORD,
+    PRICE_RE,
+    date_key,
+    days,
+    money_from_match,
+    url,
 )
-from app.schemas.facts import Fact
+from app.schemas.facts import Fact, FactType
 from app.schemas.rules import Rules
 
 PERCENT_RE = re.compile(r"(?<![\d.])(?P<n>\d{1,3}(?:\.\d+)?)\s?(?:%|percent\b|per cent\b)", re.I)
 # "14 days", "14-day", "fourteen days", "two weeks", "1 month", "2-year". A bare "a month" is not
 # a period on purpose ("$49 a month" is a price cadence, not a policy time limit).
-PERIOD_RE = re.compile(
-    rf"\b(?P<n>\d{{1,4}}|{NUMBER_WORD})\s?(?:-\s?)?(?P<unit>days?|weeks?|months?|years?)\b", re.I
-)
+PERIOD_RE = re.compile(rf"\b(?P<n>\d{{1,4}}|{NUMBER_WORD})\s?(?:-\s?)?(?P<unit>days?|weeks?|months?|years?)\b", re.I)
 _MONTH = "|".join(sorted(MONTHS, key=len, reverse=True))
 _ORD = r"(?:st|nd|rd|th)?"
 # "31 March", "31st of March 2026", "March 31", "Mar 31st, 2026", "March 2026",
@@ -28,9 +32,7 @@ DATE_RE = re.compile(
     re.I,
 )
 LINK_RE = re.compile(r"(?:https?://|\bwww\.)[^\s<>\"'\[\]{}]+", re.I)
-PROMISE_RE = re.compile(
-    r"\b(?:refund\w*|money[- ]back|guarantee\w*|trials?|for free|cancel\w*|warrant\w*)\b", re.I
-)
+PROMISE_RE = re.compile(r"\b(?:refund\w*|money[- ]back|guarantee\w*|trials?|for free|cancel\w*|warrant\w*)\b", re.I)
 _LINK_TRAILING = ".,;:!?)'\""
 # Sentence ends at . ! ? + whitespace, or at a newline. "Rs." is an abbreviation, not an end.
 _SENTENCE_BREAK = re.compile(r"(?<!\bRs\.)(?<=[.!?])\s+|\n+", re.I)
@@ -141,14 +143,20 @@ def _price_facts(text: str, rules: Rules, blocked: list[Span]) -> list[Fact]:
             product = next(iter(distinct))
         else:
             product = None
-        facts.append(Fact(
-            type="price", raw=m.group(0), start=m.start(), end=m.end(),
-            value=money_from_match(m).label(), product=product,
-        ))
+        facts.append(
+            Fact(
+                type="price",
+                raw=m.group(0),
+                start=m.start(),
+                end=m.end(),
+                value=money_from_match(m).label(),
+                product=product,
+            )
+        )
     return facts
 
 
-def _numeric_facts(text: str, pattern: re.Pattern[str], kind: str, blocked: list[Span]) -> list[Fact]:
+def _numeric_facts(text: str, pattern: re.Pattern[str], kind: FactType, blocked: list[Span]) -> list[Fact]:
     return [
         Fact(type=kind, raw=m.group(0), start=m.start(), end=m.end(), value=_number(m.group("n")))
         for m in pattern.finditer(text)

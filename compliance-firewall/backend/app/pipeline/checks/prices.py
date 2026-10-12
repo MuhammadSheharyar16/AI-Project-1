@@ -18,13 +18,16 @@ def check(fact: Fact, rules: Rules) -> FactResult:
         return FactResult(fact=fact, ok=False, reason=f"unreadable price: {fact.raw}")
     rule = next((r for r in rules.prices if r.product == fact.product), None)
     if rule is None:
-        return FactResult(fact=fact, ok=False,
-                          reason=f"price for unknown product: answer says {fact.value or fact.raw}")
+        return FactResult(
+            fact=fact, ok=False, reason=f"price for unknown product: answer says {fact.value or fact.raw}"
+        )
     official = rule.official()
     label = f"{rule.product} = {official.label()}"
     if said.currency == official.currency and abs(said.amount - official.amount) <= TOLERANCE:
         return FactResult(fact=fact, ok=True, rule=label, reason="matches the official price")
     return FactResult(
-        fact=fact, ok=False, rule=label,
+        fact=fact,
+        ok=False,
+        rule=label,
         reason=f"price mismatch: answer says {said.label()}, official price is {official.label()}",
     )

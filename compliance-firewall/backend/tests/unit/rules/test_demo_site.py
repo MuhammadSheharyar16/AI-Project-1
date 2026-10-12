@@ -54,9 +54,12 @@ def test_rules_without_a_matching_block_are_reported(tmp_path: Path) -> None:
 def test_publish_pushes_only_pages_that_differ_from_the_live_site(tmp_path: Path) -> None:
     site = site_copy(tmp_path)
     policies = (site / demo_site.POLICIES_PAGE).read_bytes().replace(b"\r\n", b"\n")
-    live = {"repos/o/r/contents/pricing/index.html": "stale",
-            "repos/o/r/contents/help/policies/index.html":
-                hashlib.sha1(b"blob %d\0" % len(policies) + policies).hexdigest()}
+    live = {
+        "repos/o/r/contents/pricing/index.html": "stale",
+        "repos/o/r/contents/help/policies/index.html": hashlib.sha1(
+            b"blob %d\0" % len(policies) + policies
+        ).hexdigest(),
+    }
     puts: list[dict[str, str]] = []
 
     def fake_gh(args: list[str], body: str | None = None) -> str:
@@ -67,14 +70,16 @@ def test_publish_pushes_only_pages_that_differ_from_the_live_site(tmp_path: Path
 
     assert demo_site.publish(site, "o/r", "msg", fake_gh) == [demo_site.PRICING_PAGE]
     assert [(p["endpoint"], p["sha"], p["message"]) for p in puts] == [
-        ("repos/o/r/contents/pricing/index.html", "stale", "msg")]
+        ("repos/o/r/contents/pricing/index.html", "stale", "msg")
+    ]
     assert b"Plans and prices" in base64.b64decode(puts[0]["content"])
 
 
 def test_saving_rules_updates_the_configured_site(tmp_path: Path) -> None:
     site = site_copy(tmp_path)
-    settings = make_settings(database_url=f"sqlite:///{tmp_path.as_posix()}/test.db", debug=True,
-                             demo_site_dir=str(site))
+    settings = make_settings(
+        database_url=f"sqlite:///{tmp_path.as_posix()}/test.db", debug=True, demo_site_dir=str(site)
+    )
     edited = copy.deepcopy(SEED_RULES)
     edited["prices"][0]["price"] = "Rs 499"
     with TestClient(create_app(settings)) as client:

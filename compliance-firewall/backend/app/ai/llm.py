@@ -27,9 +27,7 @@ class LLMClient(Protocol):
 
 
 class GroqClient:
-    def __init__(
-        self, api_key: str, model: str, *, transport: httpx.AsyncBaseTransport | None = None
-    ) -> None:
+    def __init__(self, api_key: str, model: str, *, transport: httpx.AsyncBaseTransport | None = None) -> None:
         self._api_key = api_key
         self._model = model
         self._transport = transport

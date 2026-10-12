@@ -25,7 +25,7 @@ def of_type(facts: list[Fact], kind: str) -> list[Fact]:
 def test_price_formats_with_offsets(rules: Rules, answer: str, raw: str, value: str) -> None:
     [price] = of_type(extract(answer, rules), "price")
     assert price.raw == raw
-    assert answer[price.start:price.end] == raw
+    assert answer[price.start : price.end] == raw
     assert price.value == value
     assert price.product in {"Pro plan", "Basic plan"}
 
@@ -34,7 +34,9 @@ def test_multi_price_linking_nearest_before(rules: Rules) -> None:
     answer = "Basic is Rs 4,999, Pro is $49 and Business is $129"
     prices = of_type(extract(answer, rules), "price")
     assert [(p.raw, p.product) for p in prices] == [
-        ("Rs 4,999", "Basic plan"), ("$49", "Pro plan"), ("$129", "Business plan"),
+        ("Rs 4,999", "Basic plan"),
+        ("$49", "Pro plan"),
+        ("$129", "Business plan"),
     ]
 
 
@@ -81,9 +83,11 @@ def test_links_strip_trailing_punctuation(rules: Rules) -> None:
     answer = "See https://muhammadsheharyar16.github.io/hisaabpro/help. Or (https://muhammadsheharyar16.github.io/hisaabpro/pricing), or www.muhammadsheharyar16.github.io/hisaabpro/signup!"
     links = of_type(extract(answer, rules), "link")
     assert [link.raw for link in links] == [
-        "https://muhammadsheharyar16.github.io/hisaabpro/help", "https://muhammadsheharyar16.github.io/hisaabpro/pricing", "www.muhammadsheharyar16.github.io/hisaabpro/signup",
+        "https://muhammadsheharyar16.github.io/hisaabpro/help",
+        "https://muhammadsheharyar16.github.io/hisaabpro/pricing",
+        "www.muhammadsheharyar16.github.io/hisaabpro/signup",
     ]
-    assert all(answer[link.start:link.end] == link.raw for link in links)
+    assert all(answer[link.start : link.end] == link.raw for link in links)
 
 
 def test_numbers_inside_links_are_not_facts(rules: Rules) -> None:
@@ -116,7 +120,7 @@ def test_promise_is_whole_sentence_with_offsets(rules: Rules) -> None:
     answer = "Hi there! Refunds are available within 14 days of purchase. Anything else?"
     [promise] = of_type(extract(answer, rules), "promise")
     assert promise.raw == "Refunds are available within 14 days of purchase."
-    assert answer[promise.start:promise.end] == promise.raw
+    assert answer[promise.start : promise.end] == promise.raw
 
 
 def test_no_facts_in_greeting(rules: Rules) -> None:
@@ -126,7 +130,8 @@ def test_no_facts_in_greeting(rules: Rules) -> None:
 def test_sentence_split_keeps_rs_abbreviation() -> None:
     text = "Basic is Rs. 4,999 with a refund. Pro is great."
     assert [text[s:e] for s, e in sentence_spans(text)] == [
-        "Basic is Rs. 4,999 with a refund.", "Pro is great.",
+        "Basic is Rs. 4,999 with a refund.",
+        "Pro is great.",
     ]
 
 
@@ -145,7 +150,7 @@ def test_sentence_split_keeps_rs_abbreviation() -> None:
 def test_period_words_and_units(rules: Rules, answer: str, raw: str, value: str) -> None:
     [period] = of_type(extract(answer, rules), "period")
     assert (period.raw, period.value) == (raw, value)
-    assert answer[period.start:period.end] == raw
+    assert answer[period.start : period.end] == raw
 
 
 @pytest.mark.parametrize(
@@ -171,7 +176,7 @@ def test_not_periods(rules: Rules, answer: str) -> None:
 def test_dates(rules: Rules, answer: str, raw: str, value: str) -> None:
     [date] = of_type(extract(answer, rules), "date")
     assert (date.raw, date.value) == (raw, value)
-    assert answer[date.start:date.end] == raw
+    assert answer[date.start : date.end] == raw
 
 
 @pytest.mark.parametrize(

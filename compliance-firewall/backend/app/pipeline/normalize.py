@@ -18,8 +18,17 @@ PRICE_RE = re.compile(
 )
 
 _CURRENCY = {
-    "$": "USD", "us$": "USD", "usd": "USD", "dollar": "USD", "dollars": "USD",
-    "rs": "PKR", "rs.": "PKR", "pkr": "PKR", "rupee": "PKR", "rupees": "PKR", "₨": "PKR",
+    "$": "USD",
+    "us$": "USD",
+    "usd": "USD",
+    "dollar": "USD",
+    "dollars": "USD",
+    "rs": "PKR",
+    "rs.": "PKR",
+    "pkr": "PKR",
+    "rupee": "PKR",
+    "rupees": "PKR",
+    "₨": "PKR",
 }
 
 
@@ -48,26 +57,62 @@ def money(text: str) -> Money | None:
     return money_from_match(match) if match else None
 
 
-_ONES = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
-         "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen",
-         "eighteen", "nineteen"]
-_TENS = {"twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70,
-         "eighty": 80, "ninety": 90}
-NUMBER_WORD = (
-    rf"(?:(?:{'|'.join(_TENS)})(?:[-\s](?:{'|'.join(_ONES[1:10])}))?|{'|'.join(_ONES)})"
-)
+_ONES = [
+    "zero",
+    "one",
+    "two",
+    "three",
+    "four",
+    "five",
+    "six",
+    "seven",
+    "eight",
+    "nine",
+    "ten",
+    "eleven",
+    "twelve",
+    "thirteen",
+    "fourteen",
+    "fifteen",
+    "sixteen",
+    "seventeen",
+    "eighteen",
+    "nineteen",
+]
+_TENS = {"twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90}
+NUMBER_WORD = rf"(?:(?:{'|'.join(_TENS)})(?:[-\s](?:{'|'.join(_ONES[1:10])}))?|{'|'.join(_ONES)})"
 DAYS_PER_UNIT = {"day": 1, "week": 7, "month": 30, "year": 365}
 
 MONTHS = {
-    "january": 1, "february": 2, "march": 3, "april": 4, "may": 5, "june": 6, "july": 7,
-    "august": 8, "september": 9, "october": 10, "november": 11, "december": 12,
-    "jan": 1, "feb": 2, "mar": 3, "apr": 4, "jun": 6, "jul": 7, "aug": 8, "sep": 9,
-    "sept": 9, "oct": 10, "nov": 11, "dec": 12,
+    "january": 1,
+    "february": 2,
+    "march": 3,
+    "april": 4,
+    "may": 5,
+    "june": 6,
+    "july": 7,
+    "august": 8,
+    "september": 9,
+    "october": 10,
+    "november": 11,
+    "december": 12,
+    "jan": 1,
+    "feb": 2,
+    "mar": 3,
+    "apr": 4,
+    "jun": 6,
+    "jul": 7,
+    "aug": 8,
+    "sep": 9,
+    "sept": 9,
+    "oct": 10,
+    "nov": 11,
+    "dec": 12,
 }
 
 
 def number(text: str) -> int:
-    """"14", "fourteen", "twenty-one" or "twenty one" -> int."""
+    """ "14", "fourteen", "twenty-one" or "twenty one" -> int."""
     text = text.strip().lower()
     if text.isdigit():
         return int(text)

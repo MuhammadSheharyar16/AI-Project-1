@@ -46,13 +46,29 @@ async def check(fact: Fact, rules: Rules, gateway: AIGateway) -> FactResult:
     rule = policy.title if policy else None
 
     if verdict.verdict == "contradicted":
-        return FactResult(fact=fact, ok=False, rule=rule, quote=verdict.quote,
-                          reason=f"contradicted by {rule or 'a policy'}: {verdict.reason}".rstrip(": "))
+        return FactResult(
+            fact=fact,
+            ok=False,
+            rule=rule,
+            quote=verdict.quote,
+            reason=f"contradicted by {rule or 'a policy'}: {verdict.reason}".rstrip(": "),
+        )
     if verdict.verdict == "not_covered":
-        return FactResult(fact=fact, ok=False, rule=rule, quote=verdict.quote,
-                          reason=f"not covered by any policy: {verdict.reason}".rstrip(": "))
+        return FactResult(
+            fact=fact,
+            ok=False,
+            rule=rule,
+            quote=verdict.quote,
+            reason=f"not covered by any policy: {verdict.reason}".rstrip(": "),
+        )
     if policy is None or not quote_is_verified(verdict.quote, policy.text):
-        return FactResult(fact=fact, ok=False, rule=rule, quote=verdict.quote,
-                          reason="unverified quote: the AI's quote is not word-for-word in the policy")
-    return FactResult(fact=fact, ok=True, rule=rule, quote=verdict.quote,
-                      reason=f"supported by the {policy.title} (quote verified)")
+        return FactResult(
+            fact=fact,
+            ok=False,
+            rule=rule,
+            quote=verdict.quote,
+            reason="unverified quote: the AI's quote is not word-for-word in the policy",
+        )
+    return FactResult(
+        fact=fact, ok=True, rule=rule, quote=verdict.quote, reason=f"supported by the {policy.title} (quote verified)"
+    )

@@ -48,13 +48,28 @@ def test_money_label() -> None:
 @pytest.mark.parametrize(
     ("raw", "expected"),
     [
-        ("HTTPS://MuhammadSheharyar16.GitHub.io/HisaabPro/Help/", "https://muhammadsheharyar16.github.io/hisaabpro/help"),
-        ("https://www.muhammadsheharyar16.github.io/hisaabpro/pricing", "https://muhammadsheharyar16.github.io/hisaabpro/pricing"),
+        (
+            "HTTPS://MuhammadSheharyar16.GitHub.io/HisaabPro/Help/",
+            "https://muhammadsheharyar16.github.io/hisaabpro/help",
+        ),
+        (
+            "https://www.muhammadsheharyar16.github.io/hisaabpro/pricing",
+            "https://muhammadsheharyar16.github.io/hisaabpro/pricing",
+        ),
         ("https://muhammadsheharyar16.github.io/hisaabpro/", "https://muhammadsheharyar16.github.io/hisaabpro"),
-        ("www.muhammadsheharyar16.github.io/hisaabpro/signup", "https://muhammadsheharyar16.github.io/hisaabpro/signup"),
-        ("https://muhammadsheharyar16.github.io/hisaabpro/help?ref=ai", "https://muhammadsheharyar16.github.io/hisaabpro/help?ref=ai"),
+        (
+            "www.muhammadsheharyar16.github.io/hisaabpro/signup",
+            "https://muhammadsheharyar16.github.io/hisaabpro/signup",
+        ),
+        (
+            "https://muhammadsheharyar16.github.io/hisaabpro/help?ref=ai",
+            "https://muhammadsheharyar16.github.io/hisaabpro/help?ref=ai",
+        ),
         ("http://muhammadsheharyar16.github.io/hisaabpro/help", "http://muhammadsheharyar16.github.io/hisaabpro/help"),
-        ("https://muhammadsheharyar16.github.io@evil.com/hisaabpro/help", "https://muhammadsheharyar16.github.io@evil.com/hisaabpro/help"),
+        (
+            "https://muhammadsheharyar16.github.io@evil.com/hisaabpro/help",
+            "https://muhammadsheharyar16.github.io@evil.com/hisaabpro/help",
+        ),
     ],
 )
 def test_url_normalisation(raw: str, expected: str) -> None:

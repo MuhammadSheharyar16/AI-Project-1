@@ -5,6 +5,7 @@ import sqlite3
 from typing import Any
 
 import pytest
+from conftest import FakeLLM, make_settings, use_llm
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
@@ -14,7 +15,6 @@ from app.ai.redact import redact
 from app.core.security import ClientRateLimiter
 from app.main import create_app
 from app.rules.seed import SEED_RULES
-from conftest import FakeLLM, make_settings, use_llm
 
 SAFE = SEED_RULES["safe_messages"]
 
@@ -25,13 +25,18 @@ def check(client: TestClient, answer: str, **headers: str) -> Any:
 
 # --- G2: client token on read/check endpoints -------------------------------------
 
+
 def test_api_token_protects_check_chat_audit_and_governance(client: TestClient) -> None:
     client.app.state.settings.api_token = SecretStr("client-key")
     client.app.state.settings.admin_token = SecretStr("admin-key")
-    for method, path, body in [("post", "/check", {"answer": "Pro is $49"}),
-                               ("post", "/chat", {"question": "price?"}),
-                               ("get", "/audit", None), ("get", "/governance", None),
-                               ("get", "/rules", None), ("get", "/rules/versions", None)]:
+    for method, path, body in [
+        ("post", "/check", {"answer": "Pro is $49"}),
+        ("post", "/chat", {"question": "price?"}),
+        ("get", "/audit", None),
+        ("get", "/governance", None),
+        ("get", "/rules", None),
+        ("get", "/rules/versions", None),
+    ]:
         call = getattr(client, method)
         kwargs = {"json": body} if body else {}
         assert call(path, **kwargs).status_code == 401, path
@@ -56,6 +61,7 @@ def test_client_token_cannot_edit_rules(client: TestClient) -> None:
 
 # --- G2: per-client rate limit ------------------------------------------------------
 
+
 def test_rate_limit_per_client(client: TestClient) -> None:
     client.app.state.rate_limiter = ClientRateLimiter(per_minute=2)
     assert check(client, "Pro is $49").status_code == 200
@@ -72,6 +78,7 @@ def test_rate_limiter_is_per_key() -> None:
 
 
 # --- G4: security headers and CORS ---------------------------------------------------
+
 
 def test_security_headers_on_every_response(client: TestClient) -> None:
     for response in (client.get("/health"), check(client, "Pro is $49"), client.get("/audit/999")):
@@ -95,18 +102,18 @@ def test_cors_wildcard_only_in_debug() -> None:
 
 
 def test_cors_allows_only_configured_origin(tmp_path: Any) -> None:
-    settings = make_settings(database_url=f"sqlite:///{tmp_path.as_posix()}/c.db",
-                        debug=True, cors_origins="http://localhost:8081")
+    settings = make_settings(
+        database_url=f"sqlite:///{tmp_path.as_posix()}/c.db", debug=True, cors_origins="http://localhost:8081"
+    )
     with TestClient(create_app(settings)) as c:
-        ok = c.options("/check", headers={"Origin": "http://localhost:8081",
-                                          "Access-Control-Request-Method": "POST"})
+        ok = c.options("/check", headers={"Origin": "http://localhost:8081", "Access-Control-Request-Method": "POST"})
         assert ok.headers.get("access-control-allow-origin") == "http://localhost:8081"
-        evil = c.options("/check", headers={"Origin": "https://evil.example",
-                                            "Access-Control-Request-Method": "POST"})
+        evil = c.options("/check", headers={"Origin": "https://evil.example", "Access-Control-Request-Method": "POST"})
         assert "access-control-allow-origin" not in evil.headers
 
 
 # --- G3: personal data is redacted before it is stored ----------------------------------
+
 
 def test_audit_log_stores_no_personal_data(client: TestClient) -> None:
     answer = "Refunds are available within 14 days of purchase, write to ali@example.com."
@@ -134,8 +141,9 @@ def test_card_leak_stays_rejected_after_redaction_and_recheck(client: TestClient
 def test_redaction_can_be_turned_off(client: TestClient) -> None:
     client.app.state.settings.audit_redact_pii = False
     body = check(client, "Mail ali@example.com for help.").json()
-    assert client.get(f"/audit/{body['compliance']['audit_id']}").json()["raw_answer"] == \
-        "Mail ali@example.com for help."
+    assert (
+        client.get(f"/audit/{body['compliance']['audit_id']}").json()["raw_answer"] == "Mail ali@example.com for help."
+    )
 
 
 def test_redact_only_real_card_numbers() -> None:
@@ -144,6 +152,7 @@ def test_redact_only_real_card_numbers() -> None:
 
 
 # --- G6: additive migration of an old database ---------------------------------------
+
 
 def test_old_database_is_migrated_on_startup(tmp_path: Any) -> None:
     db = tmp_path / "old.db"
@@ -159,6 +168,7 @@ def test_old_database_is_migrated_on_startup(tmp_path: Any) -> None:
             'Approved', 1, '[]', '[]', 0, 3, 'scenario', NULL, NULL);
     """)
     import json
+
     con.execute("INSERT INTO rule_sets VALUES (1, '2026-01-01 00:00:00', 'seed', ?)", (json.dumps(SEED_RULES),))
     con.commit()
     con.close()
@@ -176,6 +186,7 @@ def test_old_database_is_migrated_on_startup(tmp_path: Any) -> None:
 
 
 # --- G1: AI "periods" that are billing cadence or reply times are ignored ----------------
+
 
 class CadenceLLM(FakeLLM):
     def __init__(self, facts: list[dict[str, Any]]) -> None:
@@ -200,8 +211,9 @@ class CadenceLLM(FakeLLM):
 def test_ai_cadence_periods_are_ignored(app: FastAPI, client: TestClient, answer: str, quote: str) -> None:
     facts = [{"type": "period", "quote": quote, "days": 1}]
     if "bucks" in answer:
-        facts.append({"type": "price", "quote": "forty-nine bucks", "amount": 49, "currency": "USD",
-                      "product": "Pro plan"})
+        facts.append(
+            {"type": "price", "quote": "forty-nine bucks", "amount": 49, "currency": "USD", "product": "Pro plan"}
+        )
     use_llm(app, CadenceLLM(facts))
     body = check(client, answer).json()
     assert body["compliance"]["decision"] == "Approved", body["compliance"]["results"]

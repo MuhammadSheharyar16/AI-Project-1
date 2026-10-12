@@ -3,12 +3,12 @@
 from typing import Any
 
 import httpx
+from conftest import TEST_MODEL, CrashingLLM, FakeLLM, InventedQuoteLLM, SlowLLM, use_llm
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.ai.llm import GroqClient
 from app.rules.seed import SEED_RULES
-from conftest import TEST_MODEL, CrashingLLM, FakeLLM, InventedQuoteLLM, SlowLLM, use_llm
 
 SAFE = SEED_RULES["safe_messages"]
 
@@ -217,6 +217,7 @@ def test_case_7_rule_change_flips_recheck(client: TestClient) -> None:
 
 
 # --- compliance view lists every extracted fact ---------------------------------
+
 
 def test_every_fact_is_listed_even_when_ai_is_skipped(client: TestClient, fake_llm: FakeLLM) -> None:
     body = check(client, "Refunds are available within 14 days of purchase. Pro is $59.")

@@ -4,8 +4,8 @@ from sqlmodel import Session
 
 from app.ai.governance import AIPolicy
 from app.audit import repository as audit_repo
-from app.pipeline.extract_ai import MAX_AI_FACTS
 from app.pipeline.checks.policy_ai import MIN_QUOTE_WORDS
+from app.pipeline.extract_ai import MAX_AI_FACTS
 from app.rules import repository as rules_repo
 from app.schemas.api import GovernanceReport
 
@@ -27,8 +27,9 @@ SECURITY_CONTROLS = [
 ]
 
 
-def build(session: Session, ai: AIPolicy, admin_token_set: bool, api_token_set: bool = False,
-          redact_pii: bool = True) -> GovernanceReport:
+def build(
+    session: Session, ai: AIPolicy, admin_token_set: bool, api_token_set: bool = False, redact_pii: bool = True
+) -> GovernanceReport:
     outcomes, purposes, avg_ms = audit_repo.ai_call_stats(session)
     reviews = audit_repo.review_counts(session)
     reviewed = sum(reviews.values())
@@ -46,12 +47,13 @@ def build(session: Session, ai: AIPolicy, admin_token_set: bool, api_token_set: 
             "uses": ["extract (facts the pattern rules missed)", "verify (promises against policies)"],
         },
         security_controls=SECURITY_CONTROLS
-        + (["Personal data is redacted before it is stored in the audit log."] if redact_pii else
-           ["WARNING: AUDIT_REDACT_PII=false, so the audit log may store personal data."])
-        + ([] if admin_token_set else
-           ["WARNING: ADMIN_TOKEN is not set (write endpoints need DEBUG=true)."])
-        + ([] if api_token_set else
-           ["WARNING: API_TOKEN is not set (client endpoints need DEBUG=true)."]),
+        + (
+            ["Personal data is redacted before it is stored in the audit log."]
+            if redact_pii
+            else ["WARNING: AUDIT_REDACT_PII=false, so the audit log may store personal data."]
+        )
+        + ([] if admin_token_set else ["WARNING: ADMIN_TOKEN is not set (write endpoints need DEBUG=true)."])
+        + ([] if api_token_set else ["WARNING: API_TOKEN is not set (client endpoints need DEBUG=true)."]),
         rules={
             "latest_version": latest.version if latest else None,
             "latest_author": latest.author if latest else None,

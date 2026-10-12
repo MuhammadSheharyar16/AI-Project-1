@@ -45,10 +45,6 @@ def redact(text: str) -> tuple[str, int]:
     return text, count + n_email + n_cnic + n_phone
 
 
-def redact_text(text: str | None) -> str | None:
-    return None if text is None else redact(text)[0]
-
-
 def redact_deep(value: Any) -> Any:
     """Redact every string inside nested dicts/lists (for JSON audit columns)."""
     if isinstance(value, str):

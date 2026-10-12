@@ -9,5 +9,9 @@ sqlmodel==0.0.47
 SQLAlchemy==2.0.54
 httpx==0.28.1
 pytest==9.1.1
+# Dev tools: lint + format, type check, git hooks (see pyproject.toml and .pre-commit-config.yaml)
+ruff==0.17.0
+mypy==2.4.0
+pre-commit==4.6.2
 # Optional, only when DATABASE_URL points at Postgres (Neon / Supabase):
 # psycopg[binary]==3.2.*

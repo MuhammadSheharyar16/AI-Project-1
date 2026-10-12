@@ -62,15 +62,17 @@ forces this path for the demo.
 
 | Layer | Modules |
 |---|---|
-| API (thin routes, token guards, rate limit) | `app/api/routes/*`, `app/api/deps.py`, `app/core/security.py` |
-| Orchestrator | `app/pipeline/firewall.py` |
+| Middlewares (every request) | `app/middlewares/*`: request id + request log, security headers, global error handler (app errors → JSON, anything else → logged 500) |
+| API (thin routes, token guards, rate limit) | `app/api/routes/*` (each calls one service), `app/api/deps.py`, `app/core/security.py` (rate limiter) |
+| Services (business logic; routes call only these) | `app/services/*` (firewall + audit save, rules + demo-site sync, audit, suite, governance report) |
+| Orchestrator (decision only, no DB writes) | `app/pipeline/firewall.py` |
 | Pattern extraction and normalising | `app/pipeline/extract.py`, `app/pipeline/normalize.py` |
 | AI extraction | `app/pipeline/extract_ai.py` |
 | Code checks | `app/pipeline/checks/*.py` (prices, percents, periods, dates, links, banned, unlimited, security) |
 | AI promise check | `app/pipeline/checks/policy_ai.py` |
 | AI gateway, governance and privacy | `app/ai/governance.py`, `app/ai/redact.py`, `app/ai/prompts.py`, `app/ai/llm.py` |
 | Rules (versioned and cached) | `app/rules/*` |
-| Audit, reviews and governance report | `app/audit/*`, `app/models/*` |
+| Audit and reviews (data access) | `app/audit/repository.py`, `app/models/*` |
 
 ## Resources and limits (demo slide)
 

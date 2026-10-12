@@ -39,15 +39,19 @@ def list_entries(
         filters.append(col(AuditEntry.source) == source)
     if q:
         needle = q.lower()
-        filters.append(or_(
-            func.lower(col(AuditEntry.question)).contains(needle, autoescape=True),
-            func.lower(col(AuditEntry.raw_answer)).contains(needle, autoescape=True),
-        ))
+        filters.append(
+            or_(
+                func.lower(col(AuditEntry.question)).contains(needle, autoescape=True),
+                func.lower(col(AuditEntry.raw_answer)).contains(needle, autoescape=True),
+            )
+        )
     total = session.exec(select(func.count()).select_from(AuditEntry).where(*filters)).one()
     rows = session.exec(
-        select(AuditEntry).where(*filters)
+        select(AuditEntry)
+        .where(*filters)
         .order_by(col(AuditEntry.created_at).desc(), col(AuditEntry.id).desc())
-        .offset(offset).limit(limit)
+        .offset(offset)
+        .limit(limit)
     ).all()
     return total, list(rows)
 
@@ -76,9 +80,7 @@ def review_counts(session: Session) -> dict[str, int]:
 
 def ai_call_stats(session: Session, limit: int = 1000) -> tuple[Counter[str], Counter[str], float]:
     """Over the latest `limit` entries: (calls by outcome, calls by purpose, avg AI call ms)."""
-    ledgers = session.exec(
-        select(AuditEntry.ai_calls_json).order_by(col(AuditEntry.id).desc()).limit(limit)
-    ).all()
+    ledgers = session.exec(select(AuditEntry.ai_calls_json).order_by(col(AuditEntry.id).desc()).limit(limit)).all()
     outcomes: Counter[str] = Counter()
     purposes: Counter[str] = Counter()
     times: list[float] = []

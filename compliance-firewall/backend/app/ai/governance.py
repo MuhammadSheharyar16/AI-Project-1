@@ -87,13 +87,20 @@ class AIGateway:
         """Calls that actually reached the LLM (not blocked by the kill switch or budget)."""
         return sum(r.outcome not in ("disabled", "budget_exceeded") for r in self.ledger)
 
-    def _record(self, purpose: Purpose, outcome: Outcome, started: float,
-                redactions: int = 0, error: str | None = None) -> None:
-        self.ledger.append(AICallRecord(
-            purpose=purpose, model=self._policy.model, prompt_version=self._policy.prompt_version,
-            outcome=outcome, ms=round((perf_counter() - started) * 1000, 2),
-            redactions=redactions, error=error,
-        ))
+    def _record(
+        self, purpose: Purpose, outcome: Outcome, started: float, redactions: int = 0, error: str | None = None
+    ) -> None:
+        self.ledger.append(
+            AICallRecord(
+                purpose=purpose,
+                model=self._policy.model,
+                prompt_version=self._policy.prompt_version,
+                outcome=outcome,
+                ms=round((perf_counter() - started) * 1000, 2),
+                redactions=redactions,
+                error=error,
+            )
+        )
 
     async def ask(self, purpose: Purpose, prompt: str) -> dict[str, Any]:
         started = perf_counter()
@@ -102,14 +109,10 @@ class AIGateway:
             raise AIDisabled("AI checks are disabled by governance (AI_ENABLED=false)")
         if not self._policy.budget.try_acquire():
             self._record(purpose, "budget_exceeded", started)
-            raise AIBudgetExceeded(
-                f"AI call budget reached ({self._policy.budget.max_per_minute} calls per minute)"
-            )
+            raise AIBudgetExceeded(f"AI call budget reached ({self._policy.budget.max_per_minute} calls per minute)")
         safe_prompt, redactions = redact(prompt)
         try:
-            data = await with_timeout(
-                self._llm.llm_json(safe_prompt, self._policy.timeout_s), self._policy.timeout_s
-            )
+            data = await with_timeout(self._llm.llm_json(safe_prompt, self._policy.timeout_s), self._policy.timeout_s)
         except LLMTimeout as exc:
             self._record(purpose, "timeout", started, redactions, str(exc))
             raise

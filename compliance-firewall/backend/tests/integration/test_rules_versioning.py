@@ -40,7 +40,9 @@ def test_get_rules_returns_seed(client: TestClient) -> None:
 
 
 def test_put_creates_new_version_and_never_overwrites(client: TestClient) -> None:
-    saved = client.put("/rules", json={"author": "tester", "rules": set_price(seed(), "Pro plan", "USD 59"), "note": "raise"})
+    saved = client.put(
+        "/rules", json={"author": "tester", "rules": set_price(seed(), "Pro plan", "USD 59"), "note": "raise"}
+    )
     assert saved.status_code == 201
     assert saved.json()["version"] == 2
 
@@ -124,6 +126,7 @@ def test_accurate_drafts_follow_edited_policies_and_discounts() -> None:
 
 
 # --- audit log --------------------------------------------------------------
+
 
 def test_audit_list_filters_and_order(client: TestClient) -> None:
     check(client, "The Pro plan costs $49 per month.", question="pro price")

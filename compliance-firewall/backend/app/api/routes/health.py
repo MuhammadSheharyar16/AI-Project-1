@@ -6,7 +6,7 @@ from sqlmodel import Session
 
 from app.api.deps import get_session, get_settings
 from app.core.config import Settings
-from app.rules import repository
+from app.services import rules_service
 
 router = APIRouter(tags=["health"])
 
@@ -25,7 +25,7 @@ def health(
 ) -> Health:
     return Health(
         status="ok",
-        rule_version=repository.latest_version_number(session),
+        rule_version=rules_service.latest_version_number(session),
         ai_configured=bool(settings.groq_api_key.get_secret_value()),
         debug=settings.debug,
     )

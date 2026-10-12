@@ -17,8 +17,7 @@ SEED_RULES: dict = {
             "id": "refund",
             "title": "Refund policy",
             "topics": ["refund", "money back", "refundable"],
-            "text": "Refunds are available within 14 days of purchase. "
-                    "After 14 days, payments are non-refundable.",
+            "text": "Refunds are available within 14 days of purchase. After 14 days, payments are non-refundable.",
         },
         {
             "id": "trial",
@@ -31,7 +30,7 @@ SEED_RULES: dict = {
             "title": "Cancellation policy",
             "topics": ["cancel", "cancellation"],
             "text": "You can cancel your subscription at any time from Account Settings. "
-                    "Access continues until the end of the billing period.",
+            "Access continues until the end of the billing period.",
         },
     ],
     "allowed_links": [
@@ -49,13 +48,15 @@ SEED_RULES: dict = {
         "best price guaranteed",
     ],
     "safe_messages": {
-        "pricing": "For the latest official prices, please see https://muhammadsheharyar16.github.io/hisaabpro/pricing. "
-                   "Our team is happy to confirm the right plan for you.",
+        "pricing": "For the latest official prices, please see "
+        "https://muhammadsheharyar16.github.io/hisaabpro/pricing. "
+        "Our team is happy to confirm the right plan for you.",
         "policy": "Please see our official policies at https://muhammadsheharyar16.github.io/hisaabpro/help/policies. "
-                  "Our support team can help with any questions about your account.",
+        "Our support team can help with any questions about your account.",
         "link": "For help and resources, please visit https://muhammadsheharyar16.github.io/hisaabpro/help.",
-        "general": "Sorry, I can't answer that right now. Please visit https://muhammadsheharyar16.github.io/hisaabpro/help "
-                   "or contact our support team.",
+        "general": "Sorry, I can't answer that right now. Please visit "
+        "https://muhammadsheharyar16.github.io/hisaabpro/help "
+        "or contact our support team.",
     },
 }
 

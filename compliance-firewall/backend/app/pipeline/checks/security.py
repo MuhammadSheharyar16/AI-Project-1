@@ -34,20 +34,27 @@ REDACTED_RE = re.compile(re.escape(CARD_PLACEHOLDER) + "|" + re.escape(CNIC_PLAC
 
 
 def _flag(match: re.Match[str], value: str, reason: str) -> FactResult:
-    fact = Fact(type="security", raw=match.group(0), start=match.start(), end=match.end(),
-                source="security_scan", value=value)
+    fact = Fact(
+        type="security", raw=match.group(0), start=match.start(), end=match.end(), source="security_scan", value=value
+    )
     return FactResult(fact=fact, ok=False, rule=RULE, reason=reason)
 
 
 def scan(answer: str) -> list[FactResult]:
-    results = [_flag(m, "prompt_injection", f'possible prompt injection: "{m.group(0)}"')
-               for m in INJECTION_RE.finditer(answer)]
-    results += [_flag(m, "hidden_characters", "hidden or bidirectional control characters")
-                for m in HIDDEN_RE.finditer(answer)]
+    results = [
+        _flag(m, "prompt_injection", f'possible prompt injection: "{m.group(0)}"')
+        for m in INJECTION_RE.finditer(answer)
+    ]
+    results += [
+        _flag(m, "hidden_characters", "hidden or bidirectional control characters") for m in HIDDEN_RE.finditer(answer)
+    ]
     results += [_flag(m, "secret", "leaked secret or API key") for m in SECRET_RE.finditer(answer)]
     results += [_flag(m, "national_id", "national ID (CNIC) number") for m in CNIC_RE.finditer(answer)]
-    results += [_flag(m, "payment_card", "payment card number")
-                for m in CARD_RE.finditer(answer) if is_card_number(m.group(0))]
-    results += [_flag(m, "redacted_sensitive", "card or national ID number (redacted in the audit log)")
-                for m in REDACTED_RE.finditer(answer)]
+    results += [
+        _flag(m, "payment_card", "payment card number") for m in CARD_RE.finditer(answer) if is_card_number(m.group(0))
+    ]
+    results += [
+        _flag(m, "redacted_sensitive", "card or national ID number (redacted in the audit log)")
+        for m in REDACTED_RE.finditer(answer)
+    ]
     return results

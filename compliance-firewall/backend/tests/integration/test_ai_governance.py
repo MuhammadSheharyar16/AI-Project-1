@@ -3,6 +3,7 @@
 from typing import Any
 
 import httpx
+from conftest import TEST_MODEL, FakeLLM, SlowLLM, use_llm
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -10,7 +11,6 @@ from app.ai.governance import AIBudget
 from app.ai.llm import GroqClient
 from app.ai.prompts import PROMPT_VERSION
 from app.rules.seed import SEED_RULES
-from conftest import TEST_MODEL, FakeLLM, SlowLLM, use_llm
 
 SAFE = SEED_RULES["safe_messages"]
 PROMISE = "Refunds are available within 14 days of purchase."
@@ -75,8 +75,9 @@ def test_failed_calls_are_recorded(app: FastAPI, client: TestClient) -> None:
 
 def test_human_review_is_append_only_and_shown_on_the_entry(client: TestClient) -> None:
     audit_id = check(client, "Pro is $59")["compliance"]["audit_id"]
-    first = client.post(f"/audit/{audit_id}/review",
-                        json={"reviewer": "Ayesha", "verdict": "agree", "note": "correct block"})
+    first = client.post(
+        f"/audit/{audit_id}/review", json={"reviewer": "Ayesha", "verdict": "agree", "note": "correct block"}
+    )
     assert first.status_code == 201 and first.json()["verdict"] == "agree"
     client.post(f"/audit/{audit_id}/review", json={"reviewer": "Bilal", "verdict": "disagree"})
 
@@ -97,12 +98,12 @@ def test_rule_versions_record_the_author(client: TestClient) -> None:
 
 
 def test_governance_report(app: FastAPI, client: TestClient) -> None:
-    check(client, PROMISE)                                    # 1 AI call, Approved
-    check(client, "Pro is $59")                               # Rejected, no AI
+    check(client, PROMISE)  # 1 AI call, Approved
+    check(client, "Pro is $59")  # Rejected, no AI
     audit_id = check(client, "Hi!")["compliance"]["audit_id"]  # Approved, no AI
     client.post(f"/audit/{audit_id}/review", json={"reviewer": "A", "verdict": "disagree"})
     use_llm(app, SlowLLM())
-    check(client, PROMISE)                                    # Error: timeout
+    check(client, PROMISE)  # Error: timeout
 
     report = client.get("/governance").json()
     assert report["ai"]["model"] == TEST_MODEL

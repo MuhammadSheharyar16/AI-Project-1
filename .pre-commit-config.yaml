@@ -1,0 +1,20 @@
+# Runs ruff (lint + format) and mypy on the backend before every commit.
+# One-time setup, with the backend venv active:  pre-commit install
+# mypy runs with the active Python, so activate compliance-firewall/backend/.venv before committing.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.0
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+        files: ^compliance-firewall/backend/
+      - id: ruff-format
+        files: ^compliance-firewall/backend/
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy (backend)
+        language: system
+        entry: python -c "import subprocess, sys; sys.exit(subprocess.call([sys.executable, '-m', 'mypy'], cwd='compliance-firewall/backend'))"
+        pass_filenames: false
+        files: ^compliance-firewall/backend/app/

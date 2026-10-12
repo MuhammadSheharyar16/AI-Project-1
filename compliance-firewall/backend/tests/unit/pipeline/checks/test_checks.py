@@ -5,18 +5,25 @@ from typing import Any
 
 import httpx
 import pytest
+from conftest import TEST_MODEL, FakeLLM, InventedQuoteLLM, SlowLLM, gateway
 from pydantic import ValidationError
 
 from app.ai.governance import with_timeout
 from app.ai.llm import GroqClient, LLMError, LLMRateLimited, LLMTimeout
 from app.pipeline.checks import (
-    banned, dates, links, percents, periods, policy_ai, prices, unlimited,
+    banned,
+    dates,
+    links,
+    percents,
+    periods,
+    policy_ai,
+    prices,
+    unlimited,
 )
 from app.pipeline.decide import decide
 from app.pipeline.extract import extract
 from app.schemas.facts import Fact, FactResult
 from app.schemas.rules import Rules
-from conftest import TEST_MODEL, FakeLLM, InventedQuoteLLM, SlowLLM, gateway
 
 
 def first(answer: str, rules: Rules, kind: str) -> Fact:
@@ -25,9 +32,16 @@ def first(answer: str, rules: Rules, kind: str) -> Fact:
 
 # --- prices ---------------------------------------------------------------
 
-@pytest.mark.parametrize("answer", [
-    "Pro is $49.", "Pro is 49.00 USD.", "Pro is US$49.004.", "Basic is 4999 PKR.",
-])
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        "Pro is $49.",
+        "Pro is 49.00 USD.",
+        "Pro is US$49.004.",
+        "Basic is 4999 PKR.",
+    ],
+)
 def test_price_ok(rules: Rules, answer: str) -> None:
     assert prices.check(first(answer, rules, "price"), rules).ok
 
@@ -60,6 +74,7 @@ def test_price_unknown_product(rules: Rules) -> None:
 
 # --- percents ---------------------------------------------------------------
 
+
 def test_percent(rules: Rules) -> None:
     assert percents.check(first("Save 20% yearly.", rules, "percent"), rules).ok
     bad = percents.check(first("Save 30 percent.", rules, "percent"), rules)
@@ -67,6 +82,7 @@ def test_percent(rules: Rules) -> None:
 
 
 # --- periods ----------------------------------------------------------------
+
 
 def test_period_matches_topic_policy(rules: Rules) -> None:
     answer = "Refunds are available within 14 days."
@@ -93,13 +109,28 @@ def test_period_without_policy_fails_closed(rules: Rules) -> None:
 
 # --- links ------------------------------------------------------------------
 
-@pytest.mark.parametrize("link", ["HTTPS://MuhammadSheharyar16.GitHub.io/HisaabPro/Help/", "https://www.muhammadsheharyar16.github.io/hisaabpro/pricing", "www.muhammadsheharyar16.github.io/hisaabpro/signup"])
+
+@pytest.mark.parametrize(
+    "link",
+    [
+        "HTTPS://MuhammadSheharyar16.GitHub.io/HisaabPro/Help/",
+        "https://www.muhammadsheharyar16.github.io/hisaabpro/pricing",
+        "www.muhammadsheharyar16.github.io/hisaabpro/signup",
+    ],
+)
 def test_allowed_links(rules: Rules, link: str) -> None:
     assert links.check(first(f"See {link}.", rules, "link"), rules).ok
 
 
-@pytest.mark.parametrize("link", ["https://hisaabpro-deals.com/pro", "http://muhammadsheharyar16.github.io/hisaabpro/help",
-                                  "https://muhammadsheharyar16.github.io/hisaabpro/help?ref=x", "https://muhammadsheharyar16.github.io/hisaabpro/offers"])
+@pytest.mark.parametrize(
+    "link",
+    [
+        "https://hisaabpro-deals.com/pro",
+        "http://muhammadsheharyar16.github.io/hisaabpro/help",
+        "https://muhammadsheharyar16.github.io/hisaabpro/help?ref=x",
+        "https://muhammadsheharyar16.github.io/hisaabpro/offers",
+    ],
+)
 def test_unapproved_links(rules: Rules, link: str) -> None:
     result = links.check(first(f"See {link} now", rules, "link"), rules)
     assert not result.ok and result.reason.startswith("unapproved link")
@@ -107,11 +138,12 @@ def test_unapproved_links(rules: Rules, link: str) -> None:
 
 # --- banned phrases ---------------------------------------------------------
 
+
 def test_banned_phrase_case_insensitive_with_offsets(rules: Rules) -> None:
     answer = "It is 100% GUARANTEED and Guaranteed  refund too."
     found = banned.find(answer, rules)
     assert sorted(r.fact.value for r in found) == ["100% guaranteed", "guaranteed refund"]
-    assert all(answer[r.fact.start:r.fact.end] == r.fact.raw and not r.ok for r in found)
+    assert all(answer[r.fact.start : r.fact.end] == r.fact.raw and not r.ok for r in found)
 
 
 def test_no_banned_phrase(rules: Rules) -> None:
@@ -120,8 +152,10 @@ def test_no_banned_phrase(rules: Rules) -> None:
 
 # --- unlimited --------------------------------------------------------------
 
-@pytest.mark.parametrize("answer", ["Get a refund anytime.", "Your free trial lasts forever.",
-                                    "Refunds have no time limit."])
+
+@pytest.mark.parametrize(
+    "answer", ["Get a refund anytime.", "Your free trial lasts forever.", "Refunds have no time limit."]
+)
 def test_unlimited_contradicts_day_limited_policy(rules: Rules, answer: str) -> None:
     result = unlimited.check(first(answer, rules, "promise"), rules)
     assert result is not None and not result.ok and "contradicts" in result.reason
@@ -137,14 +171,21 @@ def test_non_unlimited_promise_left_for_ai(rules: Rules) -> None:
 
 # --- decide -----------------------------------------------------------------
 
+
 def _result(kind: str, ok: bool, start: int) -> FactResult:
     return FactResult(fact=Fact(type=kind, raw="x", start=start, end=start + 1), ok=ok)
 
 
 @pytest.mark.parametrize(
     ("kind", "key"),
-    [("price", "pricing"), ("percent", "pricing"), ("link", "link"),
-     ("promise", "policy"), ("period", "policy"), ("phrase", "policy")],
+    [
+        ("price", "pricing"),
+        ("percent", "pricing"),
+        ("link", "link"),
+        ("promise", "policy"),
+        ("period", "policy"),
+        ("phrase", "policy"),
+    ],
 )
 def test_decide_safe_message_by_type(kind: str, key: str) -> None:
     assert decide([_result("price", True, 0), _result(kind, False, 5)]) == ("Rejected", key)
@@ -200,8 +241,11 @@ def test_ai_quote_must_be_in_the_named_policy(rules: Rules, reply: dict[str, Any
 
 
 def test_ai_quote_tolerates_whitespace_and_case(rules: Rules) -> None:
-    reply = {"verdict": "supported", "policy_id": "refund",
-             "quote": '"refunds are  available within\n14 days of purchase"'}
+    reply = {
+        "verdict": "supported",
+        "policy_id": "refund",
+        "quote": '"refunds are  available within\n14 days of purchase"',
+    }
     assert ai_check("Refunds are available within 14 days.", rules, StaticLLM(reply)).ok
 
 
@@ -239,6 +283,7 @@ def test_timeout_does_not_wait_for_a_call_that_is_slow_to_stop() -> None:
 
 
 # --- GroqClient (offline, via httpx.MockTransport) ---------------------------
+
 
 def groq(handler: Any, key: str = "test-key") -> GroqClient:
     return GroqClient(key, TEST_MODEL, transport=httpx.MockTransport(handler))
@@ -294,6 +339,7 @@ def test_groq_without_key_raises() -> None:
 
 
 # --- periods in words / other units, and dates ------------------------------
+
 
 @pytest.mark.parametrize(
     ("answer", "ok"),

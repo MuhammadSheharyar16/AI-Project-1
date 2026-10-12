@@ -5,9 +5,9 @@ from pathlib import Path
 
 from sqlmodel import Session
 
-from app.pipeline import firewall
 from app.pipeline.firewall import FirewallContext
 from app.schemas.api import SuiteItem, SuiteReport, SuiteRow
+from app.services import firewall_service
 
 DEFAULT_SUITE_PATH = Path(__file__).resolve().parents[2] / "data" / "test_answers.json"
 
@@ -25,18 +25,26 @@ async def run_suite(session: Session, ctx: FirewallContext, items: list[SuiteIte
     ai_calls = 0
     version: int | None = None
     for item in items:
-        decision = await firewall.run(item.question, item.answer, session, ctx, source="suite")
+        decision = await firewall_service.check_answer(item.question, item.answer, session, ctx, source="suite")
         ai_calls += decision.ai_calls
         version = decision.rule_version if decision.rule_version is not None else version
         shown = decision.status == "Approved"  # Rejected and Error both count as blocked
         reasons = [r.reason for r in decision.results if not r.ok and not r.skipped]
         if decision.error:
             reasons.append(decision.error)
-        rows.append(SuiteRow(
-            id=item.id, category=item.category, label=item.label, decision=decision.status,
-            shown_raw_answer=shown, correct=shown == (item.label == "approve"),
-            reasons=reasons, ai_used=decision.ai_used, audit_id=decision.audit_id,
-        ))
+        rows.append(
+            SuiteRow(
+                id=item.id,
+                category=item.category,
+                label=item.label,
+                decision=decision.status,
+                shown_raw_answer=shown,
+                correct=shown == (item.label == "approve"),
+                reasons=reasons,
+                ai_used=decision.ai_used,
+                audit_id=decision.audit_id,
+            )
+        )
 
     rejects = [r for r in rows if r.label == "reject"]
     approves = [r for r in rows if r.label == "approve"]

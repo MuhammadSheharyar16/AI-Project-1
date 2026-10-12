@@ -6,6 +6,7 @@ appear in the answer, or it is discarded. Grounded facts then go through the sam
 """
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Any, Literal
@@ -21,8 +22,15 @@ from app.schemas.rules import Rules
 
 MAX_AI_FACTS = 25
 AIFactType = Literal["price", "percent", "period", "date", "link", "promise"]
-_TYPE_ALIASES = {"discount": "percent", "url": "link", "deadline": "date", "duration": "period",
-                 "time_limit": "period", "guarantee": "promise", "commitment": "promise"}
+_TYPE_ALIASES = {
+    "discount": "percent",
+    "url": "link",
+    "deadline": "date",
+    "duration": "period",
+    "time_limit": "period",
+    "guarantee": "promise",
+    "commitment": "promise",
+}
 
 CUE_RE = re.compile(
     rf"\d|%|\$|₨|\b(?:{NUMBER_WORD}|hundred|thousand|lakh|half|quarter|dozen|dollars?|bucks?"
@@ -45,7 +53,7 @@ _CADENCE_BEFORE = re.compile(r"(?:\b(?:per|a|an|every|each)\s+|/)$", re.I)
 
 
 def is_cadence(answer: str, start: int, end: int) -> bool:
-    before = answer[max(0, start - 8):start]
+    before = answer[max(0, start - 8) : start]
     return bool(CADENCE_RE.search(answer[start:end]) or _CADENCE_BEFORE.search(before))
 
 
@@ -82,7 +90,7 @@ def needs_ai(answer: str, facts: list[Fact]) -> bool:
     chars = list(answer)
     for fact in facts:
         if fact.type not in ("promise", "phrase", "security"):
-            chars[fact.start:fact.end] = " " * (fact.end - fact.start)
+            chars[fact.start : fact.end] = " " * (fact.end - fact.start)
     return CUE_RE.search("".join(chars)) is not None
 
 
@@ -127,7 +135,7 @@ def _value(ai: AIFact, raw: str) -> str | None:
     return "ai"  # promise
 
 
-def _overlaps(kind: str, start: int, end: int, taken: list[tuple[str, int, int]]) -> bool:
+def _overlaps(kind: str, start: int, end: int, taken: Sequence[tuple[str, int, int]]) -> bool:
     return any(t == kind and start < e and s < end for t, s, e in taken)
 
 
@@ -157,9 +165,16 @@ async def extract(answer: str, rules: Rules, gateway: AIGateway, known: list[Fac
             result.cadence += 1
             continue
         raw = answer[start:end]
-        result.facts.append(Fact(
-            type=ai.type, raw=raw, start=start, end=end, source="ai", value=_value(ai, raw),
-            product=_product(ai.product, rules) if ai.type == "price" else None,
-        ))
+        result.facts.append(
+            Fact(
+                type=ai.type,
+                raw=raw,
+                start=start,
+                end=end,
+                source="ai",
+                value=_value(ai, raw),
+                product=_product(ai.product, rules) if ai.type == "price" else None,
+            )
+        )
         taken.append((ai.type, start, end))
     return result

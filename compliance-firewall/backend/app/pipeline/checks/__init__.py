@@ -8,10 +8,7 @@ from app.schemas.rules import Policy, Rules
 
 def topic_policies(text: str, rules: Rules) -> list[Policy]:
     """Policies whose topic keywords appear in the text ("refund" also matches "refunds")."""
-    return [
-        p for p in rules.policies
-        if any(re.search(rf"\b{re.escape(topic)}", text, re.I) for topic in p.topics)
-    ]
+    return [p for p in rules.policies if any(re.search(rf"\b{re.escape(topic)}", text, re.I) for topic in p.topics)]
 
 
 def day_counts(text: str) -> set[int]:

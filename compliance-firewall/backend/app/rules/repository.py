@@ -4,12 +4,9 @@ from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, col, select
 
+from app.core.exceptions import VersionConflictError
 from app.models.rule_set import RuleSet
 from app.schemas.rules import Rules
-
-
-class VersionConflict(Exception):
-    """Another save created the same version number first."""
 
 
 def latest_version_number(session: Session) -> int | None:
@@ -29,9 +26,7 @@ def list_versions(session: Session) -> list[RuleSet]:
     return list(session.exec(select(RuleSet).order_by(col(RuleSet.version).desc())))
 
 
-def save_new_version(
-    session: Session, rules: Rules, note: str | None = None, author: str | None = None
-) -> RuleSet:
+def save_new_version(session: Session, rules: Rules, note: str | None = None, author: str | None = None) -> RuleSet:
     """Insert rules as version N+1. Never overwrites an existing version."""
     row = RuleSet(
         version=(latest_version_number(session) or 0) + 1,
@@ -44,7 +39,7 @@ def save_new_version(
         session.commit()
     except IntegrityError as exc:
         session.rollback()
-        raise VersionConflict(f"version {row.version} already exists") from exc
+        raise VersionConflictError(row.version) from exc
     session.refresh(row)
     return row
 
@@ -54,6 +49,4 @@ def restore_version(session: Session, version: int, author: str | None = None) -
     old = get_version(session, version)
     if old is None:
         return None
-    return save_new_version(
-        session, Rules.model_validate(old.body), note=f"restored from v{version}", author=author
-    )
+    return save_new_version(session, Rules.model_validate(old.body), note=f"restored from v{version}", author=author)

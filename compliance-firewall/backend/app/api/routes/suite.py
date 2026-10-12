@@ -5,8 +5,8 @@ from sqlmodel import Session
 
 from app.api.deps import get_firewall_context, get_session, rate_limit, require_admin, require_client
 from app.pipeline.firewall import FirewallContext
-from app.pipeline.suite import load_items, run_suite
 from app.schemas.api import SuiteInfo, SuiteReport
+from app.services.suite_service import load_items, run_suite
 
 router = APIRouter(prefix="/suite", tags=["suite"])
 

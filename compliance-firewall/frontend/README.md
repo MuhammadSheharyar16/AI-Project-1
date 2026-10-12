@@ -34,7 +34,7 @@ adds the `X-API-Key` and `X-Admin-Token` headers, which it reads from `../backen
   Don't expose it to the network.
 - Restart `npm run dev` after changing tokens in the backend `.env`.
 
-The backend URL is set in `frontend/.env`. Token overrides belong in `frontend/.env.local`
+The backend URL is set in `frontend/.env` (copy `.env.example`; without it the default `http://localhost:8000` is used). Token overrides belong in `frontend/.env.local`
 (git-ignored) or the environment:
 
 | Variable | Default | Meaning |

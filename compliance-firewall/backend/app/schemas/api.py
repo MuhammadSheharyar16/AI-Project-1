@@ -59,11 +59,19 @@ class CheckResponse(BaseModel):
         return cls(
             customer=CustomerView(text=d.customer_text),
             compliance=ComplianceView(
-                audit_id=d.audit_id, decision=d.status, rule_version=d.rule_version,
-                raw_answer=d.raw_answer, results=d.results, ai_used=d.ai_used,
-                latency_ms=d.latency_ms, trace=d.trace, error=d.error,
+                audit_id=d.audit_id,
+                decision=d.status,
+                rule_version=d.rule_version,
+                raw_answer=d.raw_answer,
+                results=d.results,
+                ai_used=d.ai_used,
+                latency_ms=d.latency_ms,
+                trace=d.trace,
+                error=d.error,
                 governance=AIGovernanceInfo(
-                    ai_model=d.ai_model, prompt_version=d.prompt_version, ai_calls=d.ai_ledger,
+                    ai_model=d.ai_model,
+                    prompt_version=d.prompt_version,
+                    ai_calls=d.ai_ledger,
                 ),
             ),
         )
@@ -91,8 +99,13 @@ class RulesResponse(BaseModel):
 
     @classmethod
     def from_row(cls, row: RuleSet) -> "RulesResponse":
-        return cls(version=row.version, created_at=row.created_at, note=row.note,
-                   author=row.author, rules=Rules.model_validate(row.body))
+        return cls(
+            version=row.version,
+            created_at=row.created_at,
+            note=row.note,
+            author=row.author,
+            rules=Rules.model_validate(row.body),
+        )
 
 
 class RuleVersionInfo(BaseModel):
@@ -122,8 +135,14 @@ class ReviewOut(BaseModel):
 
     @classmethod
     def from_row(cls, r: AuditReview) -> "ReviewOut":
-        return cls(id=r.id or 0, audit_id=r.audit_id, created_at=r.created_at, reviewer=r.reviewer,
-                   verdict=r.verdict, note=r.note)  # type: ignore[arg-type]
+        return cls(
+            id=r.id or 0,
+            audit_id=r.audit_id,
+            created_at=r.created_at,
+            reviewer=r.reviewer,
+            verdict=r.verdict,
+            note=r.note,
+        )
 
 
 class AuditOut(BaseModel):
@@ -149,12 +168,23 @@ class AuditOut(BaseModel):
     @classmethod
     def from_entry(cls, e: AuditEntry, reviews: list[AuditReview] | None = None) -> "AuditOut":
         return cls(
-            id=e.id or 0, created_at=e.created_at, question=e.question, raw_answer=e.raw_answer,
-            shown_to_customer=e.shown_to_customer, decision=e.decision,  # type: ignore[arg-type]
-            rule_version=e.rule_version, results=e.results_json, trace=e.trace_json,
-            ai_used=e.ai_used, latency_ms=e.latency_ms, source=e.source,  # type: ignore[arg-type]
-            recheck_of=e.recheck_of, error=e.error, ai_model=e.ai_model,
-            prompt_version=e.prompt_version, ai_calls=e.ai_calls_json or [],
+            id=e.id or 0,
+            created_at=e.created_at,
+            question=e.question,
+            raw_answer=e.raw_answer,
+            shown_to_customer=e.shown_to_customer,
+            decision=e.decision,
+            rule_version=e.rule_version,
+            results=e.results_json,
+            trace=e.trace_json,
+            ai_used=e.ai_used,
+            latency_ms=e.latency_ms,
+            source=e.source,
+            recheck_of=e.recheck_of,
+            error=e.error,
+            ai_model=e.ai_model,
+            prompt_version=e.prompt_version,
+            ai_calls=e.ai_calls_json or [],
             reviews=[ReviewOut.from_row(r) for r in reviews or []],
         )
 

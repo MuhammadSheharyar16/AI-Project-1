@@ -4,7 +4,7 @@ import hmac
 from collections.abc import Iterator
 from typing import Annotated
 
-from fastapi import Depends, Header, HTTPException, Query, Request
+from fastapi import Depends, Header, Query, Request
 from sqlmodel import Session
 
 from app.ai.governance import AIPolicy
@@ -12,6 +12,7 @@ from app.ai.llm import LLMClient
 from app.ai.prompts import PROMPT_VERSION
 from app.core.config import Settings
 from app.core.db import get_session as _db_session
+from app.core.exceptions import ForbiddenError, TooManyRequestsError, UnauthorizedError
 from app.pipeline.firewall import FirewallContext, Simulate
 from app.rules.cache import RulesCache
 
@@ -32,11 +33,13 @@ def get_rules_cache(request: Request) -> RulesCache:
     return request.app.state.rules_cache
 
 
-def get_firewall_context(
-    request: Request, llm: Annotated[LLMClient, Depends(get_llm)]
-) -> FirewallContext:
-    return FirewallContext(llm=llm, cache=get_rules_cache(request), ai=get_ai_policy(request),
-                           redact_audit=get_settings(request).audit_redact_pii)
+def get_firewall_context(request: Request, llm: Annotated[LLMClient, Depends(get_llm)]) -> FirewallContext:
+    return FirewallContext(
+        llm=llm,
+        cache=get_rules_cache(request),
+        ai=get_ai_policy(request),
+        redact_audit=get_settings(request).audit_redact_pii,
+    )
 
 
 def get_ai_policy(request: Request) -> AIPolicy:
@@ -51,7 +54,9 @@ def get_ai_policy(request: Request) -> AIPolicy:
 
 
 def _matches(given: str | None, expected: str) -> bool:
-    return bool(given) and bool(expected) and hmac.compare_digest(given.encode(), expected.encode())
+    if not given or not expected:
+        return False
+    return hmac.compare_digest(given.encode(), expected.encode())
 
 
 def require_admin(
@@ -67,9 +72,9 @@ def require_admin(
     if not expected:
         if settings.debug:
             return
-        raise HTTPException(status_code=403, detail="set ADMIN_TOKEN to enable this endpoint")
+        raise ForbiddenError("set ADMIN_TOKEN to enable this endpoint")
     if not _matches(x_admin_token, expected):
-        raise HTTPException(status_code=401, detail="missing or wrong X-Admin-Token")
+        raise UnauthorizedError("missing or wrong X-Admin-Token")
 
 
 def require_client(
@@ -85,18 +90,16 @@ def require_client(
     if not api_token:
         if settings.debug:
             return
-        raise HTTPException(status_code=403, detail="set API_TOKEN to enable this endpoint")
-    if not (_matches(x_api_key, api_token)
-            or _matches(x_admin_token, settings.admin_token.get_secret_value())):
-        raise HTTPException(status_code=401, detail="missing or wrong X-API-Key")
+        raise ForbiddenError("set API_TOKEN to enable this endpoint")
+    if not (_matches(x_api_key, api_token) or _matches(x_admin_token, settings.admin_token.get_secret_value())):
+        raise UnauthorizedError("missing or wrong X-API-Key")
 
 
 def rate_limit(request: Request) -> None:
     """Per-client (IP) limit on endpoints that can trigger AI calls."""
     client = request.client.host if request.client else "unknown"
     if not request.app.state.rate_limiter.allow(client):
-        raise HTTPException(status_code=429, detail="too many requests, slow down",
-                            headers={"Retry-After": "60"})
+        raise TooManyRequestsError("too many requests, slow down")
 
 
 def get_simulate(
@@ -104,5 +107,5 @@ def get_simulate(
     simulate: Simulate | None = Query(default=None, description="Debug only: crash | timeout"),
 ) -> Simulate | None:
     if simulate is not None and not get_settings(request).debug:
-        raise HTTPException(status_code=403, detail="simulate is only available when DEBUG=true")
+        raise ForbiddenError("simulate is only available when DEBUG=true")
     return simulate

@@ -55,9 +55,7 @@ def _untrusted(text: str) -> str:
 
 
 def policy_check_prompt(policies: list[Policy], claim: str) -> str:
-    policy_json = json.dumps(
-        [{"id": p.id, "title": p.title, "text": p.text} for p in policies], ensure_ascii=False
-    )
+    policy_json = json.dumps([{"id": p.id, "title": p.title, "text": p.text} for p in policies], ensure_ascii=False)
     return (
         f"{VERIFY_TASK}\n{_VERIFY_INSTRUCTIONS}\n\n{POLICIES_MARKER}\n{policy_json}\n\n"
         f"{CLAIM_START}\n{_untrusted(claim)}\n{CLAIM_END}"

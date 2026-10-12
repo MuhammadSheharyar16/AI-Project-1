@@ -24,8 +24,10 @@ def check(fact: Fact, rules: Rules) -> FactResult | None:
         if limits and not limits & stated:
             n = min(limits)
             return FactResult(
-                fact=fact, ok=False, rule=f"{policy.title}: {n}-day limit",
+                fact=fact,
+                ok=False,
+                rule=f"{policy.title}: {n}-day limit",
                 reason=f'contradicts {n}-day policy: answer says "{word.group(0)}" '
-                       f"but the {policy.title} has a {n}-day limit",
+                f"but the {policy.title} has a {n}-day limit",
             )
     return None

@@ -1,0 +1,39 @@
+[project]
+name = "compliance-firewall"
+version = "0.1.0"
+description = "POC-11: compliance firewall for AI answers"
+requires-python = ">=3.11"
+# Runtime and dev dependencies are pinned in requirements.txt (direct) and requirements.lock (full set).
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = ["ignore:Using .httpx. with .starlette.testclient."]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+# Test data uses full URLs and long expected messages verbatim.
+"tests/**" = ["E501"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI declares parameters through these calls in defaults.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Header"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.mypy]
+python_version = "3.11"
+plugins = ["pydantic.mypy"]
+files = ["app"]
+check_untyped_defs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+warn_unused_ignores = true

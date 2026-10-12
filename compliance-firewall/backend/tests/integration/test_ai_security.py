@@ -5,6 +5,7 @@ from typing import Any
 
 import httpx
 import pytest
+from conftest import FakeLLM, use_llm
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -14,12 +15,12 @@ from app.ai.redact import redact
 from app.pipeline.checks import security
 from app.rules.seed import SEED_RULES
 from app.schemas.rules import Rules
-from conftest import FakeLLM, use_llm
 
 SAFE = SEED_RULES["safe_messages"]
 
 
 # --- answer security scan (code, before any AI) ----------------------------------
+
 
 @pytest.mark.parametrize(
     ("answer", "kind"),
@@ -40,7 +41,7 @@ def test_scan_flags_security_issues(answer: str, kind: str) -> None:
     flagged = security.scan(answer)
     assert kind in {r.fact.value for r in flagged}
     assert all(not r.ok and r.fact.type == "security" for r in flagged)
-    assert all(answer[r.fact.start:r.fact.end] == r.fact.raw for r in flagged)
+    assert all(answer[r.fact.start : r.fact.end] == r.fact.raw for r in flagged)
 
 
 @pytest.mark.parametrize(
@@ -69,13 +70,17 @@ def test_injection_is_rejected_before_any_ai_call(client: TestClient, fake_llm: 
 
 # --- PII redaction before text leaves the server -----------------------------------
 
+
 def test_redact() -> None:
-    text, count = redact("Mail ali.khan@example.com or call +92 300 1234567, "
-                         "card 4111-1111-1111-1111, CNIC 35202-1234567-1.")
+    text, count = redact(
+        "Mail ali.khan@example.com or call +92 300 1234567, card 4111-1111-1111-1111, CNIC 35202-1234567-1."
+    )
     assert text == "Mail [EMAIL] or call [PHONE], card [CARD], CNIC [CNIC]."
     assert count == 4
     assert redact("Pro is $49; Basic is Rs 4,999 until 2026-03-31.") == (
-        "Pro is $49; Basic is Rs 4,999 until 2026-03-31.", 0)
+        "Pro is $49; Basic is Rs 4,999 until 2026-03-31.",
+        0,
+    )
 
 
 class RecordingLLM(FakeLLM):
@@ -105,6 +110,7 @@ def test_untrusted_text_cannot_close_its_block(rules: Rules) -> None:
 
 
 # --- admin token on write endpoints ------------------------------------------------
+
 
 def _rules_body() -> dict[str, Any]:
     return {"author": "compliance-lead", "rules": SEED_RULES}
